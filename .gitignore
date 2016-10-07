@@ -1,0 +1,8 @@
+src/shaders/*.h
+.ninja_*
+Makefile
+build.*
+!build.fox
+.build/
+src/_missing_texture.ktx
+src/_missing_texture.h

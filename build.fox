@@ -1,0 +1,118 @@
+
+#deploy = emscripten
+deploy = windows
+
+# -------------------------------------------------------- compiler flags
+
+filter deploy: windows
+	includedirs += 3rdparty/bgfx/include
+	libdirs += 3rdparty/bgfx/libs/vs2015_x64
+	#libs += bgfxDebug
+	#ccflags += $cxx_runtime_static_debug
+	libs += bgfxRelease
+	ccflags += $cxx_runtime_static_release
+
+	includedirs += 3rdparty/sdl/include
+	libdirs += 3rdparty/sdl/libs/vs2015_x64
+	libs += SDL2main SDL2 gdi32 user32
+
+	#includedirs += 3rdparty/fmod/include
+	#libdirs += 3rdparty/fmod/libs/vs2015_x64
+	#libs += fmod64_vc fmodstudio64_vc
+	#defines += FMOD_AVAILABLE
+
+	ccflags += $cxx_symbols
+	ldflags += /SUBSYSTEM:WINDOWS
+	defines += STB_IMAGE_AVAILABLE
+
+filter deploy: emscripten
+	cc = emcc.bat
+	cxx = em++.bat
+
+	includedirs += 3rdparty/bgfx/include
+	libdirs += 3rdparty/bgfx/libs/emscripten
+
+	ccflags =
+	ccflags += -fomit-frame-pointer
+	ccflags += -O3
+	ccflags += -s USE_SDL=2
+	ccflags += -s AGGRESSIVE_VARIABLE_ELIMINATION=1
+	ccflags += -g0
+	libs += bgfxRelease
+	cxxflags = $ccflags
+
+	ldflags =
+	ldflags += -s USE_SDL=2
+	ldflags += -fno-rtti -fno-exceptions
+	ldflags += -s TOTAL_MEMORY=64000000
+	ldflags += --preload-file res@/
+	ldflags += --memory-init-file 1
+	ldflags += -O3
+
+defines += YAML_DECLARE_STATIC
+defines += YAML_VERSION_MAJOR=0
+defines += YAML_VERSION_MINOR=1
+defines += YAML_VERSION_PATCH=5
+defines += YAML_VERSION_STRING=\"0.1.5\"
+
+includedirs += 3rdparty/gb
+includedirs += 3rdparty/stb
+includedirs += 3rdparty/libyaml/include
+includedirs += 3rdparty/jsmn
+includedirs += 3rdparty/spine-c/include
+includedirs += 3rdparty/klib
+includedirs += 3rdparty/tinycthread
+includedirs += 3rdparty/tlsf
+includedirs += 3rdparty/chipmunk2d/include
+
+includedirs += src/helpers
+includedirs += src/shaders
+includedirs += src
+
+filter deploy: windows
+	ccflags += $cxx_speed_optimizations
+
+# -------------------------------------------------------- shader compilation
+
+# TODO generate combined shader code ?
+
+filter deploy: windows
+	rule vshader
+		command =  3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type vertex   --platform windows -p vs_4_0 -O 3 -f $in -o $out --bin2c ${basename}
+	rule fshader
+		command =  3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type fragment --platform windows -p ps_4_0 -O 3 -f $in -o $out --bin2c ${basename}
+
+filter deploy: emscripten
+	rule vshader
+		command = 3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type vertex   --platform linux -f $in -o $out --bin2c ${basename}
+	rule fshader
+		command = 3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type fragment --platform linux -f $in -o $out --bin2c ${basename}
+
+build src/shaders/tex_color_vs.h: vshader src/shaders/tex_color.vs
+	basename = tex_color_vs
+build src/shaders/tex_color_fs.h: fshader src/shaders/tex_color.fs
+	basename = tex_color_fs
+
+rule texturec
+	command = 3rdparty/bgfx/bin/texturecDebug.exe -f $in -o $out -t RGBA8
+rule bin2c
+	command = 3rdparty/bin2c/bin2c.exe -n $name -o $out $in
+
+build src/_missing_texture.ktx: texturec src/_missing_texture.png
+build src/_missing_texture.h: bin2c src/_missing_texture.ktx
+	name = _missing_texture
+
+# -------------------------------------------------------- final app build
+
+build objects(.build/**/*): auto **/*.c || **/*.h
+
+filter deploy: windows
+	build application(.build/test): auto objects(.build/**/*)
+	# WTF WHY WINDOWS IS SUCH PIECE OF SHIT - XCOPY DOESN'T ALLOW FORWARD SLASHES IN THE PATH
+	rule copy
+		command = xcopy 3rdparty\sdl\bin\vs2015_x64\SDL2.dll ".build\*" /y /q
+	build .build/SDL2.dll: copy 3rdparty/sdl/bin/vs2015_x64/SDL2.dll || application(.build/test)
+
+filter deploy: emscripten
+	build .build/test.html: link objects(.build/**/*)
+
