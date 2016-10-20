@@ -99,10 +99,7 @@ void sp_render_ex(spine_t sp, float x, float y, float deg, float sx, float sy)
 	if(!sp.skeleton)
 		return;
 
-	float pos[3] = {x, y, 0.0f};
-	float rot[3] = {0.0f, 0.0f, -deg};
-	float scl[3] = {sx, sy, 1.0f};
-	trns_t model = tr_model(pos, rot, scl);
+	trns_t model = tr_model_spr(x, y, deg, sx, sy, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	for (int i = 0; i < sp.skeleton->slotsCount; ++i) {
 		spSlot * slot = sp.skeleton->drawOrder[i];
@@ -149,13 +146,7 @@ void sp_render_ex(spine_t sp, float x, float y, float deg, float sx, float sy)
 			id[3] = 0; id[4] = 2; id[5] = 3;
 
 			tr_set_world(model);
-			if(texture)
-				bgfx_set_texture(0, r_u_tex(), texture->tex, -1);
-			bgfx_set_transient_index_buffer(&it, 0, -1);
-			bgfx_set_transient_vertex_buffer(&vt, 0, -1);
-			bgfx_set_state(BGFX_STATE_DEFAULT_2D | blend, 0);
-			bgfx_submit(0, r_prog(), 0, false);
-
+			r_submit_transient(&vt, &it, texture ? texture->tex : r_white_tex().tex, 1.0f, 1.0f, 1.0f, 1.0f, BGFX_STATE_DEFAULT_2D | blend);
 		}
 		else if(attachment->type == SP_ATTACHMENT_MESH)
 		{
@@ -196,12 +187,7 @@ void sp_render_ex(spine_t sp, float x, float y, float deg, float sx, float sy)
 				id[i] = mesh->triangles[i];
 
 			tr_set_world(model);
-			if(texture)
-				bgfx_set_texture(0, r_u_tex(), texture->tex, -1);
-			bgfx_set_transient_index_buffer(&it, 0, -1);
-			bgfx_set_transient_vertex_buffer(&vt, 0, -1);
-			bgfx_set_state(BGFX_STATE_DEFAULT_2D | blend, 0);
-			bgfx_submit(0, r_prog(), 0, false);
+			r_submit_transient(&vt, &it, texture ? texture->tex : r_white_tex().tex, 1.0f, 1.0f, 1.0f, 1.0f, BGFX_STATE_DEFAULT_2D | blend);
 		}
 	}
 }

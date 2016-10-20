@@ -2,7 +2,7 @@
 #define _USE_MATH_DEFINES
 #include <math.h>
 
-#define MAX_LINES 4 * 1024
+#define MAX_LINES 16 * 1024
 
 typedef struct
 {
@@ -121,16 +121,8 @@ void p_debug_flush(float scale)
 		id[i * 2 + 1] = i * 2 + 1;
 	}
 
-	float pos[3] = {0.0f, 0.0f, 0.0f};
-	float rot[3] = {0.0f, 0.0f, 0.0f};
-	float scl[3] = {1.0f, 1.0f, 1.0f};
-	trns_t model = tr_model(pos, rot, scl);
-	tr_set_world(model);
-	bgfx_set_texture(0, r_u_tex(), r_white_tex().tex, -1);
-	bgfx_set_transient_index_buffer(&it, 0, -1);
-	bgfx_set_transient_vertex_buffer(&vt, 0, -1);
-	bgfx_set_state(BGFX_STATE_DEFAULT_2D | BGFX_STATE_PT_LINES, 0);
-	bgfx_submit(0, r_prog(), 0, false);
+	tr_set_world(tr_identity());
+	r_submit_transient(&vt, &it, r_white_tex().tex, 1.0f, 1.0f, 1.0f, 1.0f, BGFX_STATE_DEFAULT_2D | BGFX_STATE_PT_LINES);
 
 	ctx.lines_count = 0;
 }

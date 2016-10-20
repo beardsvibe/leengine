@@ -48,11 +48,29 @@ void	_r_deinit();
 tex_t	r_load(const char * filename, uint32_t flags);
 void	r_free(tex_t tex);
 
-void	r_viewport(uint16_t w, uint16_t h);
-void	r_render_ex(tex_t tex, float x, float y, float deg, float sx, float sy);
+void	r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
 void	r_render(tex_t tex, float x, float y, float deg);
+void	r_render_ex(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy);
+void	r_render_ex2(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy, float r, float g, float b, float a);
 
-bgfx_vertex_decl_t *	r_decl();	// vertex declaration
-bgfx_uniform_handle_t	r_u_tex();	// texture uniform
-bgfx_program_handle_t	r_prog();	// program
-tex_t					r_white_tex(); // white texture
+void	r_submit( // submit with default program
+	bgfx_vertex_buffer_handle_t vbuf,
+	bgfx_index_buffer_handle_t ibuf,
+	bgfx_texture_handle_t tex,
+	float diffuse_r, float diffuse_g, float diffuse_b, float diffuse_a,
+	uint64_t state
+);
+void	r_submit_transient( // submit transient buffers with default program
+	bgfx_transient_vertex_buffer_t * vbuf,
+	bgfx_transient_index_buffer_t * ibuf,
+	bgfx_texture_handle_t tex,
+	float diffuse_r, float diffuse_g, float diffuse_b, float diffuse_a,
+	uint64_t state
+);
+
+
+bgfx_vertex_decl_t *	r_decl();		// vertex declaration
+bgfx_uniform_handle_t	r_s_texture();	// texture sampler uniform
+bgfx_uniform_handle_t	r_u_diffuse();	// diffuse color uniform
+bgfx_program_handle_t	r_prog();		// program
+tex_t					r_white_tex();	// white texture

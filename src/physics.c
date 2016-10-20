@@ -35,7 +35,9 @@ void _p_deinit()
 
 void _p_update(double dt)
 {
-	cpSpaceStep(ctx.space, dt);
+	uint8_t k = 4;
+	for(size_t i = 0; i < k; ++i)
+		cpSpaceStep(ctx.space, dt / (float)k);
 }
 
 void _p_debug_render()

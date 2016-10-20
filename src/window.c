@@ -137,7 +137,7 @@ bool w_init(const char * name, uint16_t w, uint16_t h)
 		bgfx_set_platform_data(&pd);
 	}
 
-	bgfx_init(BGFX_RENDERER_TYPE_OPENGLES, BGFX_PCI_ID_NONE, 0, NULL, NULL);
+	bgfx_init(BGFX_RENDERER_TYPE_COUNT, BGFX_PCI_ID_NONE, 0, NULL, NULL);
 	bgfx_reset(ctx.w, ctx.h, ctx.reset_flags);
 
 	_r_init();
@@ -163,7 +163,7 @@ static bool w_poll()
 		ctx.keys[i].hit = false;
 
 	SDL_Event e;
-	if(SDL_PollEvent(&e) != 0)
+	while(SDL_PollEvent(&e) != 0)
 	{
 		switch(e.type)
 		{
@@ -182,14 +182,14 @@ static bool w_poll()
 			break;
 
 		case SDL_MOUSEMOTION:
-			ctx.mouse.x = e.motion.x - ctx.w / 2.0f;
-			ctx.mouse.y = ctx.h / 2.0f - e.motion.y;
+			ctx.mouse.x = e.motion.x;
+			ctx.mouse.y = e.motion.y;
 			break;
 
 		case SDL_MOUSEBUTTONDOWN:
 		case SDL_MOUSEBUTTONUP:
-			ctx.mouse.x = e.motion.x - ctx.w / 2.0f;
-			ctx.mouse.y = ctx.h / 2.0f - e.motion.y;
+			ctx.mouse.x = e.motion.x;
+			ctx.mouse.y = e.motion.y;
 			if(e.button.button == SDL_BUTTON_LEFT)
 				ctx.mouse.touched = ctx.mouse.l = e.button.state == SDL_PRESSED;
 			else if(e.button.button == SDL_BUTTON_RIGHT)
@@ -200,17 +200,17 @@ static bool w_poll()
 			break;
 
 		case SDL_FINGERMOTION:
-			ctx.mouse.x = e.tfinger.x - ctx.w / 2.0f;
-			ctx.mouse.y = ctx.h / 2.0f - e.tfinger.y;
+			ctx.mouse.x = e.tfinger.x;
+			ctx.mouse.y = e.tfinger.y;
 			break;
 		case SDL_FINGERDOWN:
-			ctx.mouse.x = e.tfinger.x - ctx.w / 2.0f;
-			ctx.mouse.y = ctx.h / 2.0f - e.tfinger.y;
+			ctx.mouse.x = e.tfinger.x;
+			ctx.mouse.y = e.tfinger.y;
 			ctx.mouse.touched = ctx.mouse.l = true;
 			break;
 		case SDL_FINGERUP:
-			ctx.mouse.x = e.tfinger.x - ctx.w / 2.0f;
-			ctx.mouse.y = ctx.h / 2.0f - e.tfinger.y;
+			ctx.mouse.x = e.tfinger.x;
+			ctx.mouse.y = e.tfinger.y;
 			ctx.mouse.touched = ctx.mouse.l = false;
 			break;
 
