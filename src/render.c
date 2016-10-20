@@ -145,8 +145,7 @@ void r_free(tex_t tex)
 
 void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-	//bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0x202020ff, 0.0f, 0);
-	bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0xc9dee5ff, 0.0f, 0);
+	bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0x202020ff, 0.0f, 0);
 
 	float wf = w / 2.0f, hf = h / 2.0f;
 	tr_set_view_prj(0, tr_ortho(-wf, wf, -hf, hf, -1.0f, 1.0f), tr_identity(), gb_vec2(x, y), gb_vec2(w, h));

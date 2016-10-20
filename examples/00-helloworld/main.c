@@ -33,7 +33,7 @@ void update(uint16_t w, uint16_t h, float dt, void * notused)
 
 void render(uint16_t w, uint16_t h, float dt, void * notused)
 {
-	r_viewport(w, h);
+	r_viewport(0, 0, w, h);
 
 	bgfx_dbg_text_clear(0, false);
 	bgfx_dbg_text_printf(1, 0, 0x0f, "dt %ims", (uint32_t)(dt * 1000.0f));
