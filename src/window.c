@@ -2,6 +2,7 @@
 #include "render.h"
 #include "sound.h"
 #include "physics.h"
+#include "text.h"
 #include <SDL.h>
 #include <SDL_syswm.h>
 #include <bgfxplatform.h>
@@ -143,11 +144,13 @@ bool w_init(const char * name, uint16_t w, uint16_t h)
 	_r_init();
 	_s_init();
 	_p_init();
+	_t_init(1024, 1024);
 	return true;
 }
 
 void w_deinit()
 {
+	_t_deinit();
 	_p_deinit();
 	_s_deinit();
 	_r_deinit();

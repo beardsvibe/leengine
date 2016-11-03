@@ -115,7 +115,7 @@ tex_t r_load(const char * filename, uint32_t flags)
 			// TODO do we really need a copy here?
 			// TODO generate mipmaps on a fly?
 
-			ret.tex = bgfx_create_texture_2d(x, y, false, 0, BGFX_TEXTURE_FORMAT_RGBA8, tex_flags, bgfx_copy(bytes, x * y * 4));
+			ret.tex = bgfx_create_texture_2d(x, y, false, 1, BGFX_TEXTURE_FORMAT_RGBA8, tex_flags, bgfx_copy(bytes, x * y * 4));
 			ret.w = x;
 			ret.h = y;
 			stbi_image_free(bytes);
@@ -128,7 +128,7 @@ tex_t r_load(const char * filename, uint32_t flags)
 		fprintf(stderr, "failed to load %s\n", filename);
 
 		bgfx_texture_info_t t;
-		ret.tex = bgfx_create_texture(bgfx_make_ref(_missing_texture, _missing_texture_size), BGFX_TEXTURE_NONE, 0, &t);
+		ret.tex = bgfx_create_texture(bgfx_make_ref(_missing_texture, sizeof(_missing_texture)), BGFX_TEXTURE_NONE, 0, &t);
 		ret.w = t.width;
 		ret.h = t.height;
 
@@ -145,7 +145,8 @@ void r_free(tex_t tex)
 
 void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
 {
-	bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0x202020ff, 0.0f, 0);
+	//bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0x202020ff, 0.0f, 0);
+	bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0xc9dee5ff, 0.0f, 0);
 
 	float wf = w / 2.0f, hf = h / 2.0f;
 	tr_set_view_prj(0, tr_ortho(-wf, wf, -hf, hf, -1.0f, 1.0f), tr_identity(), gb_vec2(x, y), gb_vec2(w, h));
@@ -209,3 +210,6 @@ bgfx_uniform_handle_t	r_s_texture()	{return ctx.s_texture;}
 bgfx_uniform_handle_t	r_u_diffuse()	{return ctx.u_diffuse;}
 bgfx_program_handle_t	r_prog()		{return ctx.prog;}
 tex_t					r_white_tex()	{return ctx.white_tex;}
+
+bgfx_vertex_buffer_handle_t _r_sprvbuf() {return ctx.v_buf;}
+bgfx_index_buffer_handle_t _r_spribuf() {return ctx.i_buf;}

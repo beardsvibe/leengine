@@ -12,6 +12,8 @@ static inline r_color_t r_to_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 	return ((r_color_t)a << 24) + ((r_color_t)b << 16) + ((r_color_t)g <<  8) + (r_color_t)r;
 }
 
+static inline r_color_t r_to_colorf(float r, float g, float b, float a) {return r_to_color(r * 255.0f, g * 255.0f, b * 255.0f, a * 255.0f);}
+
 // default vertex
 #pragma pack(push, 1)
 typedef struct
@@ -74,3 +76,6 @@ bgfx_uniform_handle_t	r_s_texture();	// texture sampler uniform
 bgfx_uniform_handle_t	r_u_diffuse();	// diffuse color uniform
 bgfx_program_handle_t	r_prog();		// program
 tex_t					r_white_tex();	// white texture
+
+bgfx_vertex_buffer_handle_t _r_sprvbuf();
+bgfx_index_buffer_handle_t _r_spribuf();

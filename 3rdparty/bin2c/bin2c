@@ -1,0 +1,208 @@
+#!/usr/bin/env ruby
+# --------------------  (c)john hopson  --------------------
+#
+#  bin2c - Translates the contents of any file to a C array.
+#
+#  - See readme.md for usage and examples.
+#  - hosted at github.com/johnhopson/bin2c
+#  - licensed per creativecommons.org/licenses/by-sa/3.0
+
+require  'time'
+require  'optparse'
+
+
+class App
+
+  BIN2CVER = '0.9'
+
+  def  initialize
+    @appname   = File.basename $0
+    @verstring = "#{@appname} #{BIN2CVER}"
+    @time      = Time.now
+    @verbose   = false
+    @help      = false
+    @version   = false
+    @arrayname = "bin2c_out"
+    @arraytype = "unsigned char"
+    @outfile   = "stdout"
+    @preamble  = true
+  end
+
+
+  def  run
+    parseopts
+
+    #  Emit output file contents.
+    #
+    #  - Typical output -
+    #     //  test.bin converted to C array.
+    #     //
+    #     //  - using bin2c 0.2
+    #     //  - created 2011-12-21
+    #
+    #     const unsigned char  test[160] =
+    #     {
+    #         0xee, 0x93, 0x70, 0x32, 0xf5, 0x90, 0xac, 0x44,     //  ..p2...D     0
+    #         0xd0, 0x5c, 0x70, 0xe2, 0xfc, 0x19, 0xda, 0xb5,     //  .\p.....     8
+    #         ...
+
+    content = []
+    ARGF.bytes.each do |b|
+      content << b
+    end
+
+    if content.length == 0
+      warn "empty input file - exiting"
+      exit!(1)
+    end
+
+    #  emit file header
+    if @preamble
+      unless ARGF.filename == "-" # stdin
+        puts  "//  %s converted to C array.\n" % ARGF.filename
+        puts  "//\n"
+      end
+
+      puts  "//  - using #{@verstring}\n"
+      puts  "//  - created #{@time.strftime('%Y-%m-%d')}\n\n"
+    end
+
+    #  emit array contents
+    puts "#{@arraytype}  #{@arrayname}[%d] = \n\{" % content.length
+
+    #  read input as binary and emit
+    #  each byte into C array of hex values.
+
+    ascii    = ""
+    elements = ""
+    line     = 1
+    index    = 0
+
+    #   emit content lines
+
+    content.each_with_index  do |b, x|
+
+      ascii    <<  (/[[:print:]]/ === b.chr  ? b.chr : '.')
+      elements << "0x%02x, " % b.to_s
+
+      #  add gaps every 8 lines, for readability
+
+      if elements.length >= "0x00, ".length * 8
+
+        if line > 1  &&  (line-1) % 4 == 0
+          puts ""
+        end
+
+        if x == content.length-1
+          break
+        end
+
+        puts  "    %-50s  //  %-9s  %3d" % [elements, ascii, index]
+
+        index    =  x+1
+        elements =  ""
+        ascii    =  ""
+        line     += 1
+      end
+    end
+
+    if elements.length > 0
+        puts  "    %-50s  //  %-9s  %3d" % [elements[0...-2], ascii, index]
+    end
+
+    puts "};\n\n"
+  end
+
+
+private
+
+  #  Parse command line options
+  #  and verify their settings.
+
+  def parseopts
+
+    opts = OptionParser.new
+    opts.on( '-v', '--verbose',       "Run verbosely"        ) { @verbose = true }
+    opts.on( '-h', '--help',          "Emit help information") { @help    = true }
+    opts.on(       '--version',       "Emit version and exit") { @version = true }
+    opts.on( '-n', '--name NAME',     "Array name"           ) { |n| @arrayname = n }
+    opts.on( '-t', '--type TYPE',     "Array type"           ) { |t| @arraytype = t }
+    opts.on( '-o', '--output FILE',   'Output file name'     ) { |f| @outfile   = f
+                                                                 $stdout.reopen(f, "w")}
+    opts.on( '-p', '--[no-]preamble', "No file header"       ) { |n| @preamble  = n }
+
+    opts.banner =<<-end.gsub(/^ {6}/, '')
+      Translates the contents of any file to a C array.
+
+      Usage: #{@appname} [options] [filename]
+
+      Options:
+      end
+
+
+    opts.separator <<-notes.gsub(/^ {6}/, '')
+
+      Examples:
+          #{@appname} -o output.cpp  foo.bin
+          #{@appname} -o header.h  foo.bin
+          #{@appname} -v  <foo.bin  >output.cpp
+          #{@appname} --no-preamble  -o output.cpp  <foo.bin
+          #{@appname} --type \"uint8_t\"  <foo.bin  >output.cpp
+
+      notes
+
+    begin
+      opts.parse!
+
+    rescue Exception => e
+      puts e, opts
+      exit
+    end
+
+    if @version
+      puts @verstring
+      exit 0
+
+    elsif @help
+      puts opts
+      exit 0
+    end
+
+
+    #   if no arrayname specified, use
+    #   infile name.  If infile is
+    #   stdin, use default.
+
+    if @arrayname == ""
+      fname = ARGF.filename
+
+      if fname == "-"  # stdin
+        fname = "binary_data"
+      end
+
+      @arrayname = fname.chomp(File.extname(fname))
+    end
+
+
+    if @verbose
+      warn <<-end.gsub(/^ {8}/, '')
+        appname   = #{File.basename $0}
+        verstring = #{@appname} #{BIN2CVER}
+        time      = #{@time}
+        verbose   = #{@verbose}
+        help      = #{@help}
+        version   = #{@version}
+        arrayname = #{@arrayname}
+        arraytype = #{@arraytype}
+        infile    = #{ARGF.filename}
+        outfile   = #{@outfile}
+        preamble  = #{@preamble}
+
+        end
+    end
+  end
+end
+
+
+app = App.new
+app.run

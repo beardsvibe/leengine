@@ -25,6 +25,20 @@ filter deploy: windows
 	ldflags += /SUBSYSTEM:WINDOWS
 	defines += STB_IMAGE_AVAILABLE
 
+filter deploy: osx
+	includedirs += 3rdparty/bgfx/include
+	libdirs += 3rdparty/bgfx/libs/osx_x64
+	libs += bgfxDebug
+
+	ccflags += $cxx_symbols
+	ccflags += -O0
+
+	# TODO wtf
+	ccflags += -I/Library/Frameworks/SDL2.framework/Headers
+	frameworks += SDL2 Cocoa Metal CoreGraphics Quartz
+
+	defines += STB_IMAGE_AVAILABLE
+
 filter deploy: emscripten
 	cc = emcc.bat
 	cxx = em++.bat
@@ -55,6 +69,7 @@ defines += YAML_VERSION_MINOR=1
 defines += YAML_VERSION_PATCH=5
 defines += YAML_VERSION_STRING=\"0.1.5\"
 
+includedirs += 3rdparty/fontstash
 includedirs += 3rdparty/gb
 includedirs += 3rdparty/stb
 includedirs += 3rdparty/libyaml/include
@@ -78,25 +93,38 @@ filter deploy: windows
 
 filter deploy: windows
 	rule vshader
-		command =  3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type vertex   --platform windows -p vs_4_0 -O 3 -f $in -o $out --bin2c ${basename}
+		command =  3rdparty/bgfx/bin/shaderc_win.exe -i 3rdparty/bgfx/include --type vertex   --platform windows -p vs_4_0 -O 3 -f $in -o $out --bin2c ${basename}
 	rule fshader
-		command =  3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type fragment --platform windows -p ps_4_0 -O 3 -f $in -o $out --bin2c ${basename}
+		command =  3rdparty/bgfx/bin/shaderc_win.exe -i 3rdparty/bgfx/include --type fragment --platform windows -p ps_4_0 -O 3 -f $in -o $out --bin2c ${basename}
+	rule texturec
+		command = 3rdparty/bgfx/bin/texturecDebug_win.exe -f $in -o $out -t RGBA8
+	rule bin2c
+		command = 3rdparty/bin2c/bin2c.exe -n $name -o $out $in
+
+filter deploy: osx
+	rule vshader
+		command = 3rdparty/bgfx/bin/shaderc_osx -i 3rdparty/bgfx/include --type vertex   --platform osx -f $in -o $out --bin2c ${basename}
+	rule fshader
+		command = 3rdparty/bgfx/bin/shaderc_osx -i 3rdparty/bgfx/include --type fragment --platform osx -f $in -o $out --bin2c ${basename}
+	rule texturec
+		command = 3rdparty/bgfx/bin/texturec_osx -f $in -o $out -t RGBA8
+	rule bin2c
+		command = 3rdparty/bin2c/bin2c -n $name -o $out $in
 
 filter deploy: emscripten
 	rule vshader
-		command = 3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type vertex   --platform linux -f $in -o $out --bin2c ${basename}
+		command = 3rdparty/bgfx/bin/shaderc_win.exe -i 3rdparty/bgfx/include --type vertex   --platform linux -f $in -o $out --bin2c ${basename}
 	rule fshader
-		command = 3rdparty/bgfx/bin/shaderc.exe -i 3rdparty/bgfx/include --type fragment --platform linux -f $in -o $out --bin2c ${basename}
+		command = 3rdparty/bgfx/bin/shaderc_win.exe -i 3rdparty/bgfx/include --type fragment --platform linux -f $in -o $out --bin2c ${basename}
+	rule texturec
+		command = 3rdparty/bgfx/bin/texturecDebug_win.exe -f $in -o $out -t RGBA8
+	rule bin2c
+		command = 3rdparty/bin2c/bin2c.exe -n $name -o $out $in
 
 build src/shaders/tex_color_vs.h: vshader src/shaders/tex_color.vs
 	basename = tex_color_vs
 build src/shaders/tex_color_fs.h: fshader src/shaders/tex_color.fs
 	basename = tex_color_fs
-
-rule texturec
-	command = 3rdparty/bgfx/bin/texturecDebug.exe -f $in -o $out -t RGBA8
-rule bin2c
-	command = 3rdparty/bin2c/bin2c.exe -n $name -o $out $in
 
 build src/_missing_texture.ktx: texturec src/_missing_texture.png
 build src/_missing_texture.h: bin2c src/_missing_texture.ktx
@@ -104,7 +132,7 @@ build src/_missing_texture.h: bin2c src/_missing_texture.ktx
 
 # -------------------------------------------------------- final app build
 
-build objects(.build/**/*): auto **/*.c || **/*.h
+build objects(.build/**/*): auto **/*.c | src/_missing_texture.h || **/*.h
 
 filter deploy: windows
 	build application(.build/test): auto objects(.build/**/*)
@@ -112,6 +140,9 @@ filter deploy: windows
 	rule copy
 		command = xcopy 3rdparty\sdl\bin\vs2015_x64\SDL2.dll ".build\*" /y /q
 	build .build/SDL2.dll: copy 3rdparty/sdl/bin/vs2015_x64/SDL2.dll || application(.build/test)
+
+filter deploy: osx
+	build application(.build/test): auto objects(.build/**/*)
 
 filter deploy: emscripten
 	build .build/test.html: link objects(.build/**/*)
