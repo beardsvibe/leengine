@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <spine/spine.h>
-#include <spine/extension.h>
+#include "filesystem.h"
 
 #ifndef SPINE_MESH_VERTEX_COUNT_MAX
 #define SPINE_MESH_VERTEX_COUNT_MAX 2048
@@ -34,7 +34,29 @@ void _spAtlasPage_disposeTexture(spAtlasPage * self)
 
 char * _spUtil_readFile(const char * path, int * length)
 {
-	return _readFile(path, length); // TODO
+	if(!length || !path)
+		return NULL;
+
+	FILE * file = fsopen(path, "rb");
+	if(!file)
+		return NULL;
+
+	fseek(file, 0, SEEK_END);
+	size_t size = ftell(file);
+	fseek(file, 0, SEEK_SET);
+
+	if(!size)
+	{
+		fclose(file);
+		return NULL;
+	}
+
+	char * data = (char*)malloc(size);
+	fread(data, 1, size, file);
+	fclose(file);
+	*length = size;
+
+	return data;
 }
 
 spine_t sp_load(const char * json_filename, const char * atlas_filename)

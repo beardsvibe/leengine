@@ -1,6 +1,7 @@
 
 #include "text.h"
 #include "render.h"
+#include "filesystem.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -113,7 +114,26 @@ void _t_deinit()
 
 int32_t t_add(const char * fontname, const char * filename)
 {
-	return fonsAddFont(ctx.fons, fontname, filename);
+	FILE * fp = fsopen(filename, "rb");
+	if(!fp)
+		return FONS_INVALID;
+
+
+	fseek(fp,0,SEEK_END);
+	size_t size = ftell(fp);
+	fseek(fp,0,SEEK_SET);
+
+	if(!size)
+	{
+		fclose(fp);
+		return FONS_INVALID;
+	}
+
+	uint8_t * data = (uint8_t*)malloc(size);
+	fread(data, 1, size, fp);
+	fclose(fp);
+
+	return fonsAddFontMem(ctx.fons, fontname, data, size, 1);
 }
 
 void r_text_ex2(int32_t font,

@@ -1,43 +1,31 @@
 
 #deploy = emscripten
 deploy = windows
+#deploy = osx
 
 # -------------------------------------------------------- compiler flags
+
+ccflags += $cxx_symbols
+ccflags += $cxx_speed_optimizations
 
 filter deploy: windows
 	includedirs += 3rdparty/bgfx/include
 	libdirs += 3rdparty/bgfx/libs/vs2015_x64
-	#libs += bgfxDebug
-	#ccflags += $cxx_runtime_static_debug
 	libs += bgfxRelease
-	ccflags += $cxx_runtime_static_release
 
-	includedirs += 3rdparty/sdl/include
-	libdirs += 3rdparty/sdl/libs/vs2015_x64
-	libs += SDL2main SDL2 gdi32 user32
+	libs += gdi32
 
 	#includedirs += 3rdparty/fmod/include
 	#libdirs += 3rdparty/fmod/libs/vs2015_x64
 	#libs += fmod64_vc fmodstudio64_vc
 	#defines += FMOD_AVAILABLE
 
-	ccflags += $cxx_symbols
-	ldflags += /SUBSYSTEM:WINDOWS
-	defines += STB_IMAGE_AVAILABLE
-
 filter deploy: osx
 	includedirs += 3rdparty/bgfx/include
 	libdirs += 3rdparty/bgfx/libs/osx_x64
-	libs += bgfxDebug
+	libs += bgfxRelease
 
-	ccflags += $cxx_symbols
-	ccflags += -O0
-
-	# TODO wtf
-	ccflags += -I/Library/Frameworks/SDL2.framework/Headers
-	frameworks += SDL2 Cocoa Metal CoreGraphics Quartz
-
-	defines += STB_IMAGE_AVAILABLE
+	frameworks += Cocoa CoreGraphics Quartz
 
 filter deploy: emscripten
 	cc = emcc.bat
@@ -49,16 +37,14 @@ filter deploy: emscripten
 	ccflags =
 	ccflags += -fomit-frame-pointer
 	ccflags += -O3
-	ccflags += -s USE_SDL=2
 	ccflags += -s AGGRESSIVE_VARIABLE_ELIMINATION=1
 	ccflags += -g0
 	libs += bgfxRelease
 	cxxflags = $ccflags
 
 	ldflags =
-	ldflags += -s USE_SDL=2
 	ldflags += -fno-rtti -fno-exceptions
-	ldflags += -s TOTAL_MEMORY=64000000
+	ldflags += -s TOTAL_MEMORY=128000000
 	ldflags += --preload-file res@/
 	ldflags += --memory-init-file 1
 	ldflags += -O3
@@ -79,13 +65,11 @@ includedirs += 3rdparty/klib
 includedirs += 3rdparty/tinycthread
 includedirs += 3rdparty/tlsf
 includedirs += 3rdparty/chipmunk2d/include
+includedirs += 3rdparty/entrypoint
 
 includedirs += src/helpers
 includedirs += src/shaders
 includedirs += src
-
-filter deploy: windows
-	ccflags += $cxx_speed_optimizations
 
 # -------------------------------------------------------- shader compilation
 
@@ -136,12 +120,10 @@ build objects(.build/**/*): auto **/*.c | src/_missing_texture.h || **/*.h
 
 filter deploy: windows
 	build application(.build/test): auto objects(.build/**/*)
-	# WTF WHY WINDOWS IS SUCH PIECE OF SHIT - XCOPY DOESN'T ALLOW FORWARD SLASHES IN THE PATH
-	rule copy
-		command = xcopy 3rdparty\sdl\bin\vs2015_x64\SDL2.dll ".build\*" /y /q
-	build .build/SDL2.dll: copy 3rdparty/sdl/bin/vs2015_x64/SDL2.dll || application(.build/test)
 
 filter deploy: osx
+	build objects(.build/**/*): cc **/*.m | **/*.h
+		ccflags += -fobjc-arc
 	build application(.build/test): auto objects(.build/**/*)
 
 filter deploy: emscripten

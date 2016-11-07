@@ -4,6 +4,8 @@
 #include <string.h>
 #include <tex_color_vs.h>
 #include <tex_color_fs.h>
+#include <entrypoint.h>
+#include "filesystem.h"
 #include "_missing_texture.h"
 
 static vrtx_t sprite_vertices[4] =
@@ -35,7 +37,7 @@ static struct
 
 void _r_init()
 {
-	bgfx_vertex_decl_begin(&ctx.vert_decl, BGFX_RENDERER_TYPE_NULL);
+	bgfx_vertex_decl_begin(&ctx.vert_decl, BGFX_RENDERER_TYPE_NOOP);
 	bgfx_vertex_decl_add(&ctx.vert_decl, BGFX_ATTRIB_POSITION,  3, BGFX_ATTRIB_TYPE_FLOAT, false, false);
 	bgfx_vertex_decl_add(&ctx.vert_decl, BGFX_ATTRIB_TEXCOORD0, 2, BGFX_ATTRIB_TYPE_FLOAT, false, false);
 	bgfx_vertex_decl_add(&ctx.vert_decl, BGFX_ATTRIB_COLOR0,    4, BGFX_ATTRIB_TYPE_UINT8,  true, false);
@@ -89,7 +91,7 @@ tex_t r_load(const char * filename, uint32_t flags)
 
 	if(_ends_with(filename, ".ktx")) // native bgfx format
 	{
-		FILE * f = fopen(filename, "rb");
+		FILE * f = fsopen(filename, "rb");
 		if(f)
 		{
 			fseek(f, 0, SEEK_END);
@@ -104,11 +106,11 @@ tex_t r_load(const char * filename, uint32_t flags)
 			ret.h = t.height;
 		}
 	}
-	#ifdef STB_IMAGE_AVAILABLE
 	else
 	{
+
 		int x = 0, y = 0, comp = 0;
-		stbi_uc * bytes = stbi_load(filename, &x, &y, &comp, 4);
+		stbi_uc * bytes = stbi_fsload(filename, &x, &y, &comp, 4);
 
 		if(bytes)
 		{
@@ -121,7 +123,6 @@ tex_t r_load(const char * filename, uint32_t flags)
 			stbi_image_free(bytes);
 		}
 	}
-	#endif
 
 	if(ret.tex.idx == 0 || ret.w == 0 || ret.h == 0)
 	{
@@ -143,10 +144,9 @@ void r_free(tex_t tex)
 	bgfx_destroy_texture(tex.tex);
 }
 
-void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color)
 {
-	//bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0x202020ff, 0.0f, 0);
-	bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, 0xc9dee5ff, 0.0f, 0);
+	bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, r_color_to_rgba(color), 0.0f, 0);
 
 	float wf = w / 2.0f, hf = h / 2.0f;
 	tr_set_view_prj(0, tr_ortho(-wf, wf, -hf, hf, -1.0f, 1.0f), tr_identity(), gb_vec2(x, y), gb_vec2(w, h));

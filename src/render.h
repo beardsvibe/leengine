@@ -4,12 +4,17 @@
 #include <bgfx.h>
 #include "transforms.h"
 
-typedef uint32_t r_color_t;
+typedef uint32_t r_color_t; // r_colot_t is ABGR
 
 static inline r_color_t r_to_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
 {
 	// assume little endian
 	return ((r_color_t)a << 24) + ((r_color_t)b << 16) + ((r_color_t)g <<  8) + (r_color_t)r;
+}
+
+static inline uint32_t r_color_to_rgba(r_color_t abgr_color)
+{
+	return ((abgr_color & 0x000000ff) << 24u) | ((abgr_color & 0x0000ff00) <<  8u) | ((abgr_color & 0x00ff0000) >>  8u) | ((abgr_color & 0xff000000) >> 24u);
 }
 
 static inline r_color_t r_to_colorf(float r, float g, float b, float a) {return r_to_color(r * 255.0f, g * 255.0f, b * 255.0f, a * 255.0f);}
@@ -50,7 +55,7 @@ void	_r_deinit();
 tex_t	r_load(const char * filename, uint32_t flags);
 void	r_free(tex_t tex);
 
-void	r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+void	r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color);
 void	r_render(tex_t tex, float x, float y, float deg);
 void	r_render_ex(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy);
 void	r_render_ex2(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy, float r, float g, float b, float a);

@@ -1,6 +1,7 @@
 #include "physics_debug.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
+#include <stdio.h>
 
 #define MAX_LINES 16 * 1024
 

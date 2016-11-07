@@ -1,5 +1,6 @@
 #include "dict.h"
 #include "portable.h"
+#include "filesystem.h"
 #include <stdlib.h>
 #include <yaml.h>
 #include <jsmn.h>
@@ -76,7 +77,7 @@ dict_t * _d_yaml_to_dict(yaml_document_t * doc, yaml_node_t * node)
 
 dict_t * dparsey(const char * yaml_filename)
 {
-	FILE * f = fopen(yaml_filename, "r");
+	FILE * f = fsopen(yaml_filename, "r");
 	if(!f)
 		return NULL;
 

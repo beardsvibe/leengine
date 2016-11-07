@@ -2,7 +2,8 @@
 #include "physics.h"
 #include "physics_debug.h"
 #include <chipmunk/chipmunk.h>
-#include "chipmunk/chipmunk_unsafe.h"
+#include <chipmunk/cpHastySpace.h>
+#include <chipmunk/chipmunk_unsafe.h>
 
 static void _shape_free_wrap(cpSpace * space, cpShape * shape, void * unused) {cpSpaceRemoveShape(space, shape); cpShapeFree(shape);}
 static void _shape_free(cpShape * shape, cpSpace * space) {cpSpaceAddPostStepCallback(space, (cpPostStepFunc)_shape_free_wrap, shape, NULL);}
