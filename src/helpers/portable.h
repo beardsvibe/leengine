@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <string.h>
 
@@ -34,3 +35,6 @@ size_t strlcpy(char * dst, const char * src, size_t size);
 #define S_ISREG(m) (((m) & S_IFMT) == S_IFREG)
 #define S_ISDIR(m) (((m) & S_IFMT) == S_IFDIR)
 #endif
+
+// C doesn't have strcmp in prefix form, wtf
+bool startswith(const char * string_starts, const char * with_prefix);

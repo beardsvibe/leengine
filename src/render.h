@@ -4,20 +4,16 @@
 #include <bgfx.h>
 #include "transforms.h"
 
+// color stuff
 typedef uint32_t r_color_t; // r_colot_t is ABGR
-
-static inline r_color_t r_to_color(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
-{
-	// assume little endian
-	return ((r_color_t)a << 24) + ((r_color_t)b << 16) + ((r_color_t)g <<  8) + (r_color_t)r;
-}
-
-static inline uint32_t r_color_to_rgba(r_color_t abgr_color)
-{
-	return ((abgr_color & 0x000000ff) << 24u) | ((abgr_color & 0x0000ff00) <<  8u) | ((abgr_color & 0x00ff0000) >>  8u) | ((abgr_color & 0xff000000) >> 24u);
-}
-
-static inline r_color_t r_to_colorf(float r, float g, float b, float a) {return r_to_color(r * 255.0f, g * 255.0f, b * 255.0f, a * 255.0f);}
+typedef struct {float r,g,b,a;} r_colorf_t;
+r_color_t	r_color(float r, float g, float b, float a);
+r_colorf_t	r_colorf(float r, float g, float b, float a);
+r_color_t	r_coloru(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+r_colorf_t	r_colorfu(uint8_t r, uint8_t g, uint8_t b, uint8_t a);
+uint32_t	r_color_to_rgba(r_color_t abgr_color);
+r_colorf_t	r_color_to_colorf(r_color_t abgr_color);
+r_color_t	r_colorf_to_color(r_colorf_t color);
 
 // default vertex
 #pragma pack(push, 1)
@@ -32,8 +28,10 @@ typedef struct
 // texture structure
 typedef struct
 {
-	bgfx_texture_handle_t tex;
-	uint16_t w, h;
+	bgfx_texture_handle_t tex;	// texture handle
+	uint16_t pixel_w, pixel_h;	// size of texture in pixels, please don't override
+	float w, h;					// size of sprite, might be overrided externally
+	float u1, v1, u2, v2;		// texture coordinates, might be overrided externally
 } tex_t;
 
 // default 2d rendering state
@@ -56,9 +54,9 @@ tex_t	r_load(const char * filename, uint32_t flags);
 void	r_free(tex_t tex);
 
 void	r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color);
-void	r_render(tex_t tex, float x, float y, float deg);
-void	r_render_ex(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy);
-void	r_render_ex2(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy, float r, float g, float b, float a);
+void	r_render(tex_t tex, float x, float y, float r_deg, float sx, float sy);
+void	r_render_ex(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy);
+void	r_render_ex2(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a);
 
 void	r_submit( // submit with default program
 	bgfx_vertex_buffer_handle_t vbuf,

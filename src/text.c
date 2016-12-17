@@ -55,7 +55,7 @@ static void _tex_update(void * userptr, int* rect, const unsigned char* data)
 		for(size_t i = 0; i < w; ++i)
 		{
 			uint8_t c = data[(j + y) * ctx.tex_w + i + x];
-			((r_color_t*)mem->data)[j * w + i] = r_to_color(255, 255, 255, c);
+			((r_color_t*)mem->data)[j * w + i] = r_coloru(255, 255, 255, c);
 		}
 	bgfx_update_texture_2d(ctx.tex, 0, 0, x, y, w, h, mem, -1);
 }
@@ -112,12 +112,15 @@ void _t_deinit()
 	fonsDeleteInternal(ctx.fons);
 }
 
-int32_t t_add(const char * fontname, const char * filename)
+font_t t_add(const char * fontname, const char * filename)
 {
+	int res = fonsGetFontByName(ctx.fons, fontname);
+	if(res != FONS_INVALID)
+		return res;
+
 	FILE * fp = fsopen(filename, "rb");
 	if(!fp)
 		return FONS_INVALID;
-
 
 	fseek(fp,0,SEEK_END);
 	size_t size = ftell(fp);
@@ -136,8 +139,8 @@ int32_t t_add(const char * fontname, const char * filename)
 	return fonsAddFontMem(ctx.fons, fontname, data, size, 1);
 }
 
-void r_text_ex2(int32_t font,
-				float x, float y, float deg, float sx, float sy, float ox, float oy, float r, float g, float b, float a,
+void r_text_ex2(font_t font,
+				float x, float y, float deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a,
 				float * out_bounds, uint8_t align, float size_in_pt, float spacing_in_pt,
 				const char * text, ...)
 {
@@ -147,12 +150,12 @@ void r_text_ex2(int32_t font,
 	vsnprintf(buffer, sizeof(buffer), text, args);
 	va_end(args);
 
-	tr_set_world(tr_model_spr(x, y, deg, sx, sy, ox, oy, 1, 1));
+	tr_set_world(tr_model_spr(x, y, deg, rox, roy, sx, sy, sox, soy, 1, 1));
 
 	fonsSetFont(ctx.fons, font);
 	fonsSetSize(ctx.fons, size_in_pt);
 	fonsSetSpacing(ctx.fons, spacing_in_pt);
-	fonsSetColor(ctx.fons, r_to_colorf(r, g, b, a));
+	fonsSetColor(ctx.fons, r_color(r, g, b, a));
 	fonsSetAlign(ctx.fons, align);
 	if(out_bounds)
 	{
@@ -164,6 +167,6 @@ void r_text_ex2(int32_t font,
 
 void _r_text_debug_atlas(float k_size, bool blend)
 {
-	tr_set_world(tr_model_spr(0, 0, 0, 1, 1, 0, 0, ctx.tex_w * k_size, ctx.tex_h * k_size));
+	tr_set_world(tr_model_spr(0, 0, 0, 0, 0, 1, 1, 0, 0, ctx.tex_w * k_size, ctx.tex_h * k_size));
 	r_submit(_r_sprvbuf(), _r_spribuf(), ctx.tex, 1, 1, 1, 1, BGFX_STATE_DEFAULT_2D | (blend ? BGFX_STATE_BLEND_ALPHA : 0));
 }

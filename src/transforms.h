@@ -5,11 +5,10 @@
 
 typedef gbMat4 trns_t;
 
-trns_t tr_persp(float fovy, uint16_t w, uint16_t h, float z_near, float z_far);
+trns_t tr_mul(trns_t a, trns_t b); // generally look, position vector is from right here
 trns_t tr_ortho(float left, float right, float bottom, float top, float z_near, float z_far);
-trns_t tr_view(float * eye, float * up, float * at);
 trns_t tr_identity();
-trns_t tr_model_spr(float x, float y, float deg, float sx, float sy, float ox, float oy, float w, float h);
+trns_t tr_model_spr(float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float w, float h);
 void   tr_debug(trns_t tr);
 
 void tr_set_view_prj(uint8_t viewid, trns_t prj, trns_t view, gbVec2 viewport_pos, gbVec2 viewport_size);

@@ -8,6 +8,41 @@
 #include "filesystem.h"
 #include "_missing_texture.h"
 
+r_color_t r_color(float r, float g, float b, float a)
+{
+	return r_coloru(gb_clamp01(r) * 255.0f, gb_clamp01(g) * 255.0f, gb_clamp01(b) * 255.0f, gb_clamp01(a) * 255.0f);
+}
+r_colorf_t r_colorf(float r, float g, float b, float a)
+{
+	r_colorf_t ret;
+	ret.r = r;
+	ret.g = g;
+	ret.b = b;
+	ret.a = a;
+	return ret;
+}
+r_color_t r_coloru(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+	// assume little endian
+	return ((r_color_t)a << 24) + ((r_color_t)b << 16) + ((r_color_t)g <<  8) + (r_color_t)r;
+}
+r_colorf_t r_colorfu(uint8_t r, uint8_t g, uint8_t b, uint8_t a)
+{
+	return r_colorf((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)a / 255.0f);
+}
+uint32_t r_color_to_rgba(r_color_t abgr_color)
+{
+	return ((abgr_color & 0x000000ff) << 24u) | ((abgr_color & 0x0000ff00) <<  8u) | ((abgr_color & 0x00ff0000) >>  8u) | ((abgr_color & 0xff000000) >> 24u);
+}
+r_colorf_t r_color_to_colorf(r_color_t abgr_color)
+{
+	return r_colorfu(abgr_color & 0xff, (abgr_color >> 8) & 0xff, (abgr_color >> 16) & 0xff, (abgr_color >> 24) & 0xff);
+}
+r_color_t r_colorf_to_color(r_colorf_t color)
+{
+	return r_color(color.r, color.g, color.b, color.a);
+}
+
 static vrtx_t sprite_vertices[4] =
 {
 	// 0 1
@@ -64,6 +99,7 @@ void _r_deinit()
 {
 	bgfx_destroy_texture(ctx.white_tex.tex);
 	bgfx_destroy_program(ctx.prog);
+	bgfx_destroy_uniform(ctx.u_diffuse);
 	bgfx_destroy_uniform(ctx.s_texture);
 	bgfx_destroy_vertex_buffer(ctx.v_buf);
 	bgfx_destroy_index_buffer(ctx.i_buf);
@@ -78,8 +114,6 @@ static bool _ends_with(const char * str, const char * ext)
 
 tex_t r_load(const char * filename, uint32_t flags)
 {
-	(void)flags;
-
 	tex_t ret = {0};
 
 	// TODO prefer loading ktx over other formats
@@ -102,13 +136,12 @@ tex_t r_load(const char * filename, uint32_t flags)
 
 			bgfx_texture_info_t t;
 			ret.tex = bgfx_create_texture(mem, tex_flags, 0, &t);
-			ret.w = t.width;
-			ret.h = t.height;
+			ret.pixel_w = t.width;
+			ret.pixel_h = t.height;
 		}
 	}
 	else
 	{
-
 		int x = 0, y = 0, comp = 0;
 		stbi_uc * bytes = stbi_fsload(filename, &x, &y, &comp, 4);
 
@@ -118,23 +151,26 @@ tex_t r_load(const char * filename, uint32_t flags)
 			// TODO generate mipmaps on a fly?
 
 			ret.tex = bgfx_create_texture_2d(x, y, false, 1, BGFX_TEXTURE_FORMAT_RGBA8, tex_flags, bgfx_copy(bytes, x * y * 4));
-			ret.w = x;
-			ret.h = y;
+			ret.pixel_w = x;
+			ret.pixel_h = y;
 			stbi_image_free(bytes);
 		}
 	}
 
-	if(ret.tex.idx == 0 || ret.w == 0 || ret.h == 0)
+	if(ret.tex.idx == 0 || ret.pixel_w == 0 || ret.pixel_h == 0)
 	{
 		fprintf(stderr, "failed to load %s\n", filename);
 
 		bgfx_texture_info_t t;
 		ret.tex = bgfx_create_texture(bgfx_make_ref(_missing_texture, sizeof(_missing_texture)), BGFX_TEXTURE_NONE, 0, &t);
-		ret.w = t.width;
-		ret.h = t.height;
-
-		assert(ret.tex.idx && ret.w && ret.h);
+		ret.pixel_w = t.width;
+		ret.pixel_h = t.height;
+		assert(ret.tex.idx && ret.pixel_w && ret.pixel_h);
 	}
+
+	ret.u1 = 0.0f; ret.v1 = 0.0f;
+	ret.u2 = 1.0f; ret.v2 = 1.0f;
+	ret.w = ret.pixel_w; ret.h = ret.pixel_h;
 
 	return ret;
 }
@@ -156,20 +192,54 @@ void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color)
 	bgfx_touch(0);
 }
 
-void r_render(tex_t tex, float x, float y, float deg)
+void r_render(tex_t tex, float x, float y, float r_deg, float sx, float sy)
 {
-	r_render_ex2(tex, x, y, deg, 1.0f, 1.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+	r_render_ex2(tex, x, y, r_deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void r_render_ex(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy)
+void r_render_ex(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy)
 {
-	r_render_ex2(tex, x, y, deg, sx, sy, ox, oy, 1.0f, 1.0f, 1.0f, 1.0f);
+	r_render_ex2(tex, x, y, r_deg, rox, roy, sx, sy, sox, soy, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void r_render_ex2(tex_t tex, float x, float y, float deg, float sx, float sy, float ox, float oy, float r, float g, float b, float a)
+void r_render_ex2(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a)
 {
-	tr_set_world(tr_model_spr(x, y, deg, sx, sy, ox, oy, tex.w, tex.h));
-	r_submit(ctx.v_buf, ctx.i_buf, tex.tex, r, g, b, a, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
+	tr_set_world(tr_model_spr(x, y, r_deg, rox, roy, sx, sy, sox, soy, tex.w, tex.h));
+
+	if(tex.u1 == 0.0f && tex.v1 == 0.0f && tex.u2 == 1.0f && tex.v2 == 1.0f)
+	{
+		r_submit(ctx.v_buf, ctx.i_buf, tex.tex, r, g, b, a, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
+	}
+	else
+	{
+		// TODO better way to render sprites with custom UV ?
+
+		vrtx_t sprite_vertices[4] =
+		{
+			// 0 1
+			// 3 2
+			{-0.5f,  0.5f, 0.0f, tex.u1, tex.v1, 0xffffffff },
+			{ 0.5f,  0.5f, 0.0f, tex.u2, tex.v1, 0xffffffff },
+			{ 0.5f, -0.5f, 0.0f, tex.u2, tex.v2, 0xffffffff },
+			{-0.5f, -0.5f, 0.0f, tex.u1, tex.v2, 0xffffffff },
+		};
+
+		const uint16_t sprite_indices[6] =
+		{
+			0, 1, 2, // TODO resolve dat shit with ccw vs cw
+			0, 2, 3,
+		};
+
+		bgfx_transient_vertex_buffer_t vt;
+		bgfx_alloc_transient_vertex_buffer(&vt, 4, r_decl());
+		memcpy(vt.data, sprite_vertices, sizeof(sprite_vertices));
+
+		bgfx_transient_index_buffer_t it;
+		bgfx_alloc_transient_index_buffer(&it, 6);
+		memcpy(it.data, sprite_indices, sizeof(sprite_indices));
+
+		r_submit_transient(&vt, &it, tex.tex, r, g, b, a, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
+	}
 }
 
 void r_submit(

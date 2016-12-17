@@ -121,7 +121,7 @@ void sp_render_ex(spine_t sp, float x, float y, float deg, float sx, float sy)
 	if(!sp.skeleton)
 		return;
 
-	trns_t model = tr_model_spr(x, y, deg, sx, sy, 0.0f, 0.0f, 1.0f, 1.0f);
+	trns_t model = tr_model_spr(x, y, deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 1.0f, 1.0f);
 
 	for (int i = 0; i < sp.skeleton->slotsCount; ++i) {
 		spSlot * slot = sp.skeleton->drawOrder[i];
@@ -129,7 +129,7 @@ void sp_render_ex(spine_t sp, float x, float y, float deg, float sx, float sy)
 		if(!attachment)
 			continue;
 
-		r_color_t color = r_to_color(sp.skeleton->r * slot->r * 255, sp.skeleton->g * slot->g * 255, sp.skeleton->b * slot->b * 255, sp.skeleton->a * slot->a * 255);
+		r_color_t color = r_color(sp.skeleton->r * slot->r, sp.skeleton->g * slot->g, sp.skeleton->b * slot->b, sp.skeleton->a * slot->a);
 
 		uint64_t blend =
 				 (slot->data->blendMode == SP_BLEND_MODE_ADDITIVE) ? BGFX_STATE_BLEND_ADD :

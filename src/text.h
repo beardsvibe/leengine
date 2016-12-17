@@ -3,10 +3,12 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+typedef int32_t font_t;
+
 void _t_init(uint32_t w, uint32_t h); // size of text texture atlas in pixels
 void _t_deinit();
 
-int32_t t_add(const char * fontname, const char * filename);
+font_t t_add(const char * fontname, const char * filename);
 
 #define TEXT_ALIGN_LEFT		(1 << 0) // horizontal align default
 #define TEXT_ALIGN_CENTER	(1 << 1)
@@ -16,8 +18,8 @@ int32_t t_add(const char * fontname, const char * filename);
 #define TEXT_ALIGN_BOTTOM	(1 << 5)
 #define TEXT_ALIGN_BASELINE	(1 << 6) // vertical align default
 
-void r_text_ex2(int32_t font,
-				float x, float y, float deg, float sx, float sy, float ox, float oy, float r, float g, float b, float a,
+void r_text_ex2(font_t font,
+				float x, float y, float deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a,
 				float * out_bounds, uint8_t align, float size_in_pt, float spacing_in_pt,
 				const char * text, ...);
 

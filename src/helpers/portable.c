@@ -17,3 +17,10 @@ size_t strlcpy(char * dst, const char * src, size_t size)
 }
 
 #endif
+
+bool startswith(const char * string_starts, const char * with_prefix)
+{
+	size_t ls = strlen(string_starts);
+	size_t lp = strlen(with_prefix);
+	return (ls >= lp) && (memcmp(string_starts, with_prefix, lp) == 0);
+}

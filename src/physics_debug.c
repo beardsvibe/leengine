@@ -23,7 +23,7 @@ static void _line(cpVect a, cpVect b, cpSpaceDebugColor c)
 		return;
 	line_t * l = &ctx.lines[ctx.lines_count];
 	l->x1 = a.x; l->y1 = a.y; l->x2 = b.x; l->y2 = b.y;
-	l->color = r_to_color(c.r * 255.0f, c.g * 255.0f, c.b * 255.0f, c.a * 255.0f);
+	l->color = r_color(c.r, c.g, c.b, c.a);
 	ctx.lines_count++;
 	if(ctx.lines_count >= MAX_LINES)
 		printf("reached max lines in physics debug renderer!\n");

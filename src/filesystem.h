@@ -5,7 +5,7 @@
 #include <stdio.h>
 
 // please use this instead of fopen
-// because files might be in a different place then you expect
+// because files might be in a different place than you expect
 // on some platforms this might end up doing fmemopen or similar
 FILE * fsopen(const char * filename, const char * mode);
 

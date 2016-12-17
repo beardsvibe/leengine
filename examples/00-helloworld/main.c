@@ -40,7 +40,7 @@ int32_t game_update(uint16_t w, uint16_t h, float dt)
 
 int32_t game_render(uint16_t w, uint16_t h, float dt)
 {
-	r_viewport(0, 0, w, h, r_to_color(32, 32, 32, 255));
+	r_viewport(0, 0, w, h, r_coloru(32, 32, 32, 255));
 
 	bgfx_dbg_text_clear(0, false);
 	bgfx_dbg_text_printf(1, 0, 0x0f, "dt %ims", (uint32_t)(dt * 1000.0f));
@@ -49,7 +49,7 @@ int32_t game_render(uint16_t w, uint16_t h, float dt)
 
 	static float deg = 0.0f;
 	deg += 360.0f * dt;
-	r_render(test, 0.0f, 0.0f, deg);
+	r_render(test, 0.0f, 0.0f, deg, 1.0f, 1.0f);
 
 	return 0;
 }
