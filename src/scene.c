@@ -33,7 +33,7 @@ void scene_draw_entity(scene_entity_t * e)
 			c->tex,
 			e->x, e->y,
 			e->r, e->rox, e->roy,
-			e->sx, e->sy, e->sox, e->soy,
+			e->sx, e->sy, e->sox, e->soy, e->ox, e->oy,
 			c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a
 		);
 	}

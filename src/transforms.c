@@ -38,9 +38,12 @@ trns_t tr_identity()
 	return ret;
 }
 
-trns_t tr_model_spr(float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float w, float h)
+trns_t tr_model_spr(float x, float y,
+					float r_deg, float rox, float roy,
+					float sx, float sy, float sox, float soy,
+					float w, float h, float ox, float oy)
 {
-	trns_t mpos, mrot, mroto, mroton, mscl, msclo, msclon, mspr;
+	trns_t mpos, mrot, mroto, mroton, mscl, msclo, msclon, mspr, morg;
 	gb_mat4_translate(&mpos,	gb_vec3(x, y, 0.0f));
 	gb_mat4_from_quat(&mrot,	gb_quat_euler_angles(0.0f, 0.0f, -r_deg * GB_MATH_PI / 180.0f));
 	gb_mat4_translate(&mroto,	gb_vec3(rox, roy, 0.0f));
@@ -49,8 +52,9 @@ trns_t tr_model_spr(float x, float y, float r_deg, float rox, float roy, float s
 	gb_mat4_translate(&msclo,	gb_vec3(sox, soy, 0.0f));
 	gb_mat4_translate(&msclon,	gb_vec3(-sox, -soy, 0.0f));
 	gb_mat4_scale(&mspr,		gb_vec3(w, h, 1.0f));
+	gb_mat4_translate(&morg,	gb_vec3(-ox, -oy, 0.0f));
 
-	trns_t * muls[] = {&mpos, &mroto, &mrot, &mroton, &msclo, &mscl, &msclon, &mspr};
+	trns_t * muls[] = {&mpos, &mroto, &mrot, &mroton, &msclo, &mscl, &msclon, &mspr, &morg};
 	return _tr_muls(muls, sizeof(muls) / sizeof(muls[0]));
 }
 
@@ -128,8 +132,7 @@ gbVec2 tr_inverted_prj(gbVec2 pos)
 	// TODO maybe add some caching here?
 	trns_t vpvw = tr_mul(ctx.vpv, ctx.world);
 	trns_t inv_vpvw;
-	gb_mat4_inverse(&inv_vpvw, &vpvw); // wait for https://github.com/gingerBill/gb/pull/14
-	gb_mat4_transpose(&inv_vpvw);
+	gb_mat4_inverse(&inv_vpvw, &vpvw);
 
 	gbVec4 ret;
 	gb_mat4_mul_vec4(&ret, &inv_vpvw, gb_vec4(pos.x, pos.y, 0.0f, 1.0f));

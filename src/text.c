@@ -150,7 +150,7 @@ void r_text_ex2(font_t font,
 	vsnprintf(buffer, sizeof(buffer), text, args);
 	va_end(args);
 
-	tr_set_world(tr_model_spr(x, y, deg, rox, roy, sx, sy, sox, soy, 1, 1));
+	tr_set_world(tr_model_spr(x, y, deg, rox, roy, sx, sy, sox, soy, 1, 1, 0, 0));
 
 	fonsSetFont(ctx.fons, font);
 	fonsSetSize(ctx.fons, size_in_pt);
@@ -167,6 +167,6 @@ void r_text_ex2(font_t font,
 
 void _r_text_debug_atlas(float k_size, bool blend)
 {
-	tr_set_world(tr_model_spr(0, 0, 0, 0, 0, 1, 1, 0, 0, ctx.tex_w * k_size, ctx.tex_h * k_size));
+	tr_set_world(tr_model_spr(0, 0, 0, 0, 0, 1, 1, 0, 0, ctx.tex_w * k_size, ctx.tex_h * k_size, 0, 0));
 	r_submit(_r_sprvbuf(), _r_spribuf(), ctx.tex, 1, 1, 1, 1, BGFX_STATE_DEFAULT_2D | (blend ? BGFX_STATE_BLEND_ALPHA : 0));
 }

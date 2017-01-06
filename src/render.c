@@ -194,17 +194,17 @@ void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color)
 
 void r_render(tex_t tex, float x, float y, float r_deg, float sx, float sy)
 {
-	r_render_ex2(tex, x, y, r_deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+	r_render_ex2(tex, x, y, r_deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
 void r_render_ex(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy)
 {
-	r_render_ex2(tex, x, y, r_deg, rox, roy, sx, sy, sox, soy, 1.0f, 1.0f, 1.0f, 1.0f);
+	r_render_ex2(tex, x, y, r_deg, rox, roy, sx, sy, sox, soy, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
 }
 
-void r_render_ex2(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a)
+void r_render_ex2(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float ox, float oy, float r, float g, float b, float a)
 {
-	tr_set_world(tr_model_spr(x, y, r_deg, rox, roy, sx, sy, sox, soy, tex.w, tex.h));
+	tr_set_world(tr_model_spr(x, y, r_deg, rox, roy, sx, sy, sox, soy, tex.w, tex.h, ox, oy));
 
 	if(tex.u1 == 0.0f && tex.v1 == 0.0f && tex.u2 == 1.0f && tex.v2 == 1.0f)
 	{

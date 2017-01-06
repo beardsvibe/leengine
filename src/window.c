@@ -136,6 +136,11 @@ bool w_mtouch() {return ctx.touch.left;}
 bool w_ml() {return ctx.touch.left;}
 bool w_mr() {return ctx.touch.right;}
 
+uint8_t w_tmax() {return ENTRYPOINT_MAX_MULTITOUCH;}
+float w_tx(uint8_t i) {return ctx.touch.multitouch[i].x;}
+float w_ty(uint8_t i) {return ctx.touch.multitouch[i].y;}
+bool w_touch(uint8_t i) {return ctx.touch.multitouch[i].touched;}
+
 #else
 
 float w_mx() {return 0.0f;}
@@ -143,5 +148,10 @@ float w_my() {return 0.0f;}
 bool w_mtouch() {return false;}
 bool w_ml() {return false;}
 bool w_mr() {return false;}
+
+size_t w_tmax() {return 0;}
+float w_tx(size_t i) {return 0.0f;}
+float w_ty(size_t i) {return 0.0f;}
+bool w_touch(size_t i) {return false;}
 
 #endif

@@ -1,6 +1,7 @@
 #define ENTRYPOINT_CTX
 #include "entrypoint.h"
 #include "filesystem.h"
+#include "portable.h"
 
 #ifdef EMSCRIPTEN
 #include <string.h>
@@ -17,6 +18,10 @@ FILE * fsopen(const char * filename, const char * mode)
 		printf("looks like your file '%s' is not in res, this is not currently supported on emscripten :(\n");
 	#endif
 	return fopen(filename, mode);
+}
+void _fs_path(const char * filename, char * buf, size_t size)
+{
+	strlcpy(buf, filename, size);
 }
 #endif
 

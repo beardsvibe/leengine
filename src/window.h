@@ -29,3 +29,9 @@ float w_my();
 bool w_mtouch();
 bool w_ml();
 bool w_mr();
+
+// touch
+uint8_t w_tmax();
+float w_tx(uint8_t i);
+float w_ty(uint8_t i);
+bool w_touch(uint8_t i);

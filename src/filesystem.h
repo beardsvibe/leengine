@@ -9,6 +9,9 @@
 // on some platforms this might end up doing fmemopen or similar
 FILE * fsopen(const char * filename, const char * mode);
 
+// TODO remove this
+void _fs_path(const char * filename, char * buf, size_t size);
+
 // TODO add iOS specific things for file writing, like context, lifetime, etc
 
 // -----------------------------------------------------------------------------

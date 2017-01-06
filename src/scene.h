@@ -19,7 +19,7 @@ typedef void (*scene_callback_t)(scene_entity_t * entity, scene_t * scene);
 
 struct scene_entity_t
 {
-	float x, y, r, rox, roy, sx, sy, sox, soy; 			// position stuff
+	float x, y, r, rox, roy, sx, sy, sox, soy, ox, oy;	// position stuff
 
 	float start_x, start_y;								// original position of an object
 	float start_w, start_h;								// original size

@@ -3,6 +3,7 @@
 
 #ifdef FMOD_AVAILABLE
 
+#include "filesystem.h"
 #include <fmod_studio.h>
 #include <fmod_errors.h>
 
@@ -11,7 +12,7 @@ static struct
 	FMOD_STUDIO_SYSTEM * system;
 } ctx;
 
-static _e(FMOD_RESULT result)
+static void _e(FMOD_RESULT result)
 {
 	if(result != FMOD_OK)
 		fprintf(stderr, "fmod error : %s\n", FMOD_ErrorString(result));
@@ -36,7 +37,11 @@ void _s_update()
 bank_t s_load_bank(const char * path)
 {
 	bank_t ret;
-	_e(FMOD_Studio_System_LoadBankFile(ctx.system, path, FMOD_STUDIO_LOAD_BANK_NORMAL, (FMOD_STUDIO_BANK**)&ret.inst));
+	
+	char buf[1024 * 2] = {0};
+	_fs_path(path, buf, sizeof(buf));
+	
+	_e(FMOD_Studio_System_LoadBankFile(ctx.system, buf, FMOD_STUDIO_LOAD_BANK_NORMAL, (FMOD_STUDIO_BANK**)&ret.inst));
 	return ret;
 }
 

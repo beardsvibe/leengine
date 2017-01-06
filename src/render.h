@@ -56,7 +56,7 @@ void	r_free(tex_t tex);
 void	r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color);
 void	r_render(tex_t tex, float x, float y, float r_deg, float sx, float sy);
 void	r_render_ex(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy);
-void	r_render_ex2(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a);
+void	r_render_ex2(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float ox, float oy, float r, float g, float b, float a);
 
 void	r_submit( // submit with default program
 	bgfx_vertex_buffer_handle_t vbuf,

@@ -121,7 +121,7 @@ void sp_render_ex(spine_t sp, float x, float y, float deg, float sx, float sy)
 	if(!sp.skeleton)
 		return;
 
-	trns_t model = tr_model_spr(x, y, deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 1.0f, 1.0f);
+	trns_t model = tr_model_spr(x, y, deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 1.0f, 1.0f, 0.0f, 0.0f);
 
 	for (int i = 0; i < sp.skeleton->slotsCount; ++i) {
 		spSlot * slot = sp.skeleton->drawOrder[i];
