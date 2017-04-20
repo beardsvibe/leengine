@@ -24,3 +24,10 @@ bool startswith(const char * string_starts, const char * with_prefix)
 	size_t lp = strlen(with_prefix);
 	return (ls >= lp) && (memcmp(string_starts, with_prefix, lp) == 0);
 }
+
+bool endswith(const char * string_ends, const char * with_prefix)
+{
+	size_t ls = strlen(string_ends);
+	size_t lp = strlen(with_prefix);
+	return (ls >= lp) && (memcmp(string_ends + ls - lp, with_prefix, lp) == 0);
+}

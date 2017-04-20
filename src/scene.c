@@ -29,13 +29,27 @@ void scene_draw_entity(scene_entity_t * e)
 	{
 		scene_sprite_t * c = e->sprite;
 
-		r_render_ex2(
-			c->tex,
-			e->x, e->y,
-			e->r, e->rox, e->roy,
-			e->sx, e->sy, e->sox, e->soy, e->ox, e->oy,
-			c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a
-		);
+		if(c->tex_9slice)
+		{
+			r_9slice(
+				c->tex, *c->tex_9slice,
+				e->start_w * e->sx, e->start_h * e->sy,
+				e->x, e->y,
+				e->r, e->rox, e->roy,
+				e->ox, e->oy,
+				c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a
+			);
+		}
+		else
+		{
+			r_render_ex2(
+				c->tex,
+				e->x, e->y,
+				e->r, e->rox, e->roy,
+				e->sx, e->sy, e->sox, e->soy, e->ox, e->oy,
+				c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a
+			);
+		}
 	}
 
 	if(e->text)
@@ -45,7 +59,7 @@ void scene_draw_entity(scene_entity_t * e)
 		if(c->shadow)
 		{
 			r_text_ex2(
-				c->font,
+				c->use_native_font ? NATIVE_FONT : c->font,
 				e->x + c->shadow_x, e->y + c->shadow_y,
 				e->r, e->rox, e->roy,
 				e->sx, e->sy, e->sox, e->soy,
@@ -59,7 +73,7 @@ void scene_draw_entity(scene_entity_t * e)
 		}
 
 		r_text_ex2(
-			c->font,
+			c->use_native_font ? NATIVE_FONT : c->font,
 			e->x, e->y,
 			e->r, e->rox, e->roy,
 			e->sx, e->sy, e->sox, e->soy,
@@ -103,4 +117,39 @@ void scene_set_entities_visibility_for_prefix(scene_t * scene, const char * pref
 {
 	scene_entities_list_t ent = scene_get_entities_for_prefix(scene, prefix);
 	scene_set_entities_visibility(&ent, visible);
+}
+
+gbRect2 sprite_AABB(scene_sprite_t * c)
+{
+	scene_entity_t * e = c->entity;
+
+	trns_t model = tr_model_spr(
+		e->x, e->y,
+		e->r, e->rox, e->roy,
+		e->sx, e->sy, e->sox, e->soy,
+		c->tex.w, c->tex.h,
+		e->ox, e->oy
+	);
+
+	const gbVec4 sprite_vertices[4] =
+	{
+		{-0.5f,  0.5f, 0.0f, 1.0f},
+		{ 0.5f,  0.5f, 0.0f, 1.0f},
+		{ 0.5f, -0.5f, 0.0f, 1.0f},
+		{-0.5f, -0.5f, 0.0f, 1.0f},
+	};
+
+	gbVec4 results[4] = {0};
+
+	for(uint8_t i = 0; i < 4; ++i)
+		gb_mat4_mul_vec4(&results[i], &model, sprite_vertices[i]);
+
+	gbRect2 ret = {0};
+	for(uint8_t i = 0; i < 4; ++i)
+	{
+		gbRect2 cur = gb_rect2(results[i].xy, gb_vec2_zero());
+		ret = i ? gb_rect2_union(ret, cur) : cur;
+	}
+
+	return ret;
 }

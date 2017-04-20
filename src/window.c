@@ -3,7 +3,7 @@
 #include "render.h"
 #include "sound.h"
 #include "physics.h"
-#include "text.h"
+#include "render_text.h"
 #include <bgfxplatform.h>
 #include <stdio.h>
 #ifdef EMSCRIPTEN
@@ -23,7 +23,7 @@ int32_t entrypoint_init(int32_t argc, char * argv[])
 {
 	ctx.size = ep_size();
 
-	#ifdef EMSCRIPTEN
+	#if defined(EMSCRIPTEN)
 	ctx.reset_flags = BGFX_RESET_NONE;
 	#else
 	ctx.reset_flags = BGFX_RESET_VSYNC;
@@ -38,6 +38,8 @@ int32_t entrypoint_init(int32_t argc, char * argv[])
 	pd.nwh					= ep_ctx()->window;
 	#elif BX_PLATFORM_WINDOWS
 	pd.nwh					= ep_ctx()->hwnd;
+	#elif BX_PLATFORM_ANDROID
+	pd.nwh					= ep_ctx()->window;
 	#elif BX_PLATFORM_STEAMLINK
 	#error TODO
 	#endif
@@ -45,7 +47,8 @@ int32_t entrypoint_init(int32_t argc, char * argv[])
 
 	bgfx_init(BGFX_RENDERER_TYPE_COUNT, BGFX_PCI_ID_NONE, 0, NULL, NULL);
 
-	if(bgfx_get_caps()->supported & BGFX_CAPS_HIDPI)
+	// enable retina in bgfx only if entrypoint is built with it
+	if(ep_retina() && (bgfx_get_caps()->supported & BGFX_CAPS_HIDPI))
 		ctx.reset_flags |= BGFX_RESET_HIDPI;
 
 	bgfx_reset(ctx.size.w, ctx.size.h, ctx.reset_flags);
@@ -81,9 +84,22 @@ int32_t entrypoint_might_unload()
 
 int32_t entrypoint_loop()
 {
+	#if BX_PLATFORM_ANDROID
+	static void * window = NULL;
+	if(window != ep_ctx()->window)
+	{
+		window = ep_ctx()->window;
+		bgfx_platform_data_t pd = {0};
+		pd.nwh = window;
+		bgfx_set_platform_data(&pd);
+	}
+	if(!window)
+		return 0;
+	#endif
+
 	// get dt
 	#ifdef ENTRYPOINT_PROVIDE_TIME
-	float dt = ep_time();
+	float dt = (float)ep_time();
 	if(dt > 1.0f / 25.0f)
 		dt = 1.0f / 25.0f;
 	#else
@@ -106,9 +122,10 @@ int32_t entrypoint_loop()
 	// update
 	int32_t err1 = game_update(ctx.size.w, ctx.size.h, dt);
 	_s_update();
-	_p_update(dt);
+	//_p_update(dt);
 
 	// render
+	_t_cleanup();
 	int32_t err2 = game_render(ctx.size.w, ctx.size.h, dt);
 	//_p_debug_render();
 	bgfx_frame(false);

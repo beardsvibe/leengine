@@ -73,6 +73,8 @@ void	r_submit_transient( // submit transient buffers with default program
 	uint64_t state
 );
 
+void r_scissors(uint16_t x, uint16_t y, uint16_t w, uint16_t h);
+void r_scissors_clear();
 
 bgfx_vertex_decl_t *	r_decl();		// vertex declaration
 bgfx_uniform_handle_t	r_s_texture();	// texture sampler uniform

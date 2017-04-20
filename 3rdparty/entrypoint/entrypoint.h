@@ -53,6 +53,9 @@ entrypoint_ctx_t * ep_ctx();
 typedef struct ep_size_t {uint16_t w, h;} ep_size_t;
 ep_size_t ep_size();
 
+// is current platform built with retina support
+bool ep_retina();
+
 // -----------------------------------------------------------------------------
 
 #ifdef ENTRYPOINT_PROVIDE_TIME
@@ -91,6 +94,9 @@ typedef struct
 		float x, y;
 		uint8_t touched;
 	} multitouch[ENTRYPOINT_MAX_MULTITOUCH];
+
+	// accelerometer data, if available
+	float acc_x, acc_y, acc_z;
 	
 	// TODO mouse wheel, additional buttons
 } ep_touch_t;
@@ -144,6 +150,10 @@ uint32_t ep_kchar();
 	#endif
 #elif defined(EMSCRIPTEN)
 	#include <sys/time.h>
+#elif defined(__ANDROID__)
+    #include <android/native_window.h>
+	#include <android_native_app_glue.h>
+	#include <pthread.h>
 #endif
 
 struct entrypoint_ctx_t
@@ -224,6 +234,26 @@ struct entrypoint_ctx_t
 		#ifdef ENTRYPOINT_PROVIDE_TIME
 			struct timeval prev_time;
 		#endif
+	#elif defined(__ANDROID__)
+		struct android_app * app;
+		ANativeWindow * window;
+		uint16_t view_w, view_h;
+		pthread_mutex_t mutex;
+		pthread_t thread;
+		union
+		{
+			uint8_t flags;
+			struct
+			{
+				uint8_t flag_want_to_close: 1;
+				#ifdef ENTRYPOINT_PROVIDE_TIME
+				uint8_t flag_time_set: 1;
+				#endif
+			};
+		};
+		#ifdef ENTRYPOINT_PROVIDE_TIME
+			struct timeval prev_time;
+		#endif
 	#endif
 
 	// -------------------------------------------------------------------------
@@ -232,7 +262,7 @@ struct entrypoint_ctx_t
 	#ifdef ENTRYPOINT_PROVIDE_INPUT
 		uint32_t last_char;
 		char keys[256], prev[256];
-		#if defined(__APPLE__) || defined(EMSCRIPTEN)
+		#if defined(__APPLE__) || defined(EMSCRIPTEN) || defined(__ANDROID__)
 			ep_touch_t touch;
 		#endif
 	#endif

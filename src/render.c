@@ -10,7 +10,12 @@
 
 r_color_t r_color(float r, float g, float b, float a)
 {
-	return r_coloru(gb_clamp01(r) * 255.0f, gb_clamp01(g) * 255.0f, gb_clamp01(b) * 255.0f, gb_clamp01(a) * 255.0f);
+	return r_coloru(
+		(uint8_t)(gb_clamp01(r) * 255.0f),
+		(uint8_t)(gb_clamp01(g) * 255.0f),
+		(uint8_t)(gb_clamp01(b) * 255.0f),
+		(uint8_t)(gb_clamp01(a) * 255.0f)
+	);
 }
 r_colorf_t r_colorf(float r, float g, float b, float a)
 {
@@ -68,6 +73,9 @@ static struct
 	bgfx_vertex_buffer_handle_t	v_buf;
 	bgfx_index_buffer_handle_t	i_buf;
 	tex_t						white_tex;
+	uint8_t						viewid;
+	uint32_t					view_color;
+	uint16_t					view_x, view_y, view_w, view_h;
 } ctx;
 
 void _r_init()
@@ -180,16 +188,37 @@ void r_free(tex_t tex)
 	bgfx_destroy_texture(tex.tex);
 }
 
+static void r_setup_viewid(bool first)
+{
+	if(first)
+		bgfx_set_view_clear(ctx.viewid, BGFX_CLEAR_COLOR, ctx.view_color, 0.0f, 0);
+	else
+		bgfx_set_view_clear(ctx.viewid, BGFX_CLEAR_NONE, 0, 0.0f, 0);
+
+	float wf = ctx.view_w / 2.0f, hf = ctx.view_h / 2.0f;
+	tr_set_view_prj(ctx.viewid, tr_ortho(-wf, wf, -hf, hf, -1.0f, 1.0f), tr_identity(), gb_vec2(ctx.view_x, ctx.view_y), gb_vec2(ctx.view_w, ctx.view_h));
+
+	bgfx_set_view_seq(ctx.viewid, true);
+	bgfx_touch(ctx.viewid);
+}
+
+static void r_next_viewid()
+{
+	++ctx.viewid;
+	r_setup_viewid(false);
+}
+
 void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color)
 {
-	bgfx_set_view_clear(0, BGFX_CLEAR_COLOR, r_color_to_rgba(color), 0.0f, 0);
+	ctx.view_color = r_color_to_rgba(color);
+	ctx.view_x = x;
+	ctx.view_y = y;
+	ctx.view_w = w;
+	ctx.view_h = h;
 
-	float wf = w / 2.0f, hf = h / 2.0f;
-	tr_set_view_prj(0, tr_ortho(-wf, wf, -hf, hf, -1.0f, 1.0f), tr_identity(), gb_vec2(x, y), gb_vec2(w, h));
-
+	ctx.viewid = 0;
+	r_setup_viewid(true);
 	tr_set_parent_world(tr_identity());
-	bgfx_set_view_seq(0, true);
-	bgfx_touch(0);
 }
 
 void r_render(tex_t tex, float x, float y, float r_deg, float sx, float sy)
@@ -256,7 +285,7 @@ void r_submit(
 	bgfx_set_texture(0, ctx.s_texture, tex, -1);
 	bgfx_set_uniform(ctx.u_diffuse, diffuse, 1);
 	bgfx_set_state(state, 0);
-	bgfx_submit(0, ctx.prog, 0, false);
+	bgfx_submit(ctx.viewid, ctx.prog, 0, false);
 }
 void r_submit_transient(
 	bgfx_transient_vertex_buffer_t * vbuf,
@@ -272,7 +301,19 @@ void r_submit_transient(
 	bgfx_set_texture(0, ctx.s_texture, tex, -1);
 	bgfx_set_uniform(ctx.u_diffuse, diffuse, 1);
 	bgfx_set_state(state, 0);
-	bgfx_submit(0, ctx.prog, 0, false);
+	bgfx_submit(ctx.viewid, ctx.prog, 0, false);
+}
+
+void r_scissors(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
+{
+	r_next_viewid();
+	bgfx_set_view_scissor(ctx.viewid, x, y, w, h);
+}
+
+void r_scissors_clear()
+{
+	r_next_viewid();
+	bgfx_set_view_scissor(ctx.viewid, 0, 0, 0, 0);
 }
 
 bgfx_vertex_decl_t *	r_decl()		{return &ctx.vert_decl;}

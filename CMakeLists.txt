@@ -1,0 +1,320 @@
+
+# to compile:
+
+# - emscripten, run cmake -DCMAKE_COMPILER_IS_MINGW=1 -DCMAKE_TOOLCHAIN_FILE=%EMSCRIPTEN%/cmake/Modules/Platform/Emscripten.cmake -GNinja ..
+# - android, use android studio
+# - iOS, first run cmake -DIOS=1 -GNinja .. to generate all temporary files, then use XCode
+# - macOS, run cmake -DCMAKE_OSX_ARCHITECTURES=x86_64 -GNinja ..
+# - win, use plain cmake
+
+# also you can specify -DBGFX_DEBUG=1 to enable bgfx debug libs
+
+cmake_minimum_required(VERSION 3.3)
+set(PRJ_TARGET "leengine")
+set(ROOT ${CMAKE_CURRENT_SOURCE_DIR})
+project(${PRJ_TARGET})
+
+# ----------------------------------------------------------------------------------
+# figure out for which platform we target and what we are running on
+
+# targets
+if(EMSCRIPTEN)
+	set(PRJ_TARGET_EMSCRIPTEN		1)
+	set(PRJ_SHADERS_PLATFORM		"asm.js")
+	set(PRJ_BUILD_EXECUTABLE		1)
+	# set(PRJ_FMOD_AVAILABLE 1) # TODO upgrade and enable FMOD to 1.09
+
+	link_directories(
+		${ROOT}/3rdparty/bgfx/libs/emscripten
+	)
+
+elseif(ANDROID_PLATFORM)
+	set(PRJ_TARGET_ANDROID			1)
+	set(PRJ_SHADERS_PLATFORM		"android")
+	set(PRJ_BUILD_SHARED_LIB		1)
+	#set(PRJ_FMOD_AVAILABLE			1)
+
+	# TODO fix android CPU arch build
+	link_directories(
+		${ROOT}/3rdparty/bgfx/libs/android_armv7a
+		${ROOT}/3rdparty/fmod/libs/android/armeabi-v7a
+	)
+
+elseif(APPLE AND IOS)
+	set(PRJ_TARGET_IOS				1)
+	set(PRJ_SHADERS_PLATFORM		"ios")
+
+elseif(APPLE)
+	set(PRJ_TARGET_MACOS 			1)
+	set(PRJ_SHADERS_PLATFORM 		"osx")
+	set(PRJ_BUILD_EXECUTABLE		1)
+	#set(PRJ_FMOD_AVAILABLE			1)
+
+	link_directories(
+		${ROOT}/3rdparty/bgfx/libs/osx_x64
+		${ROOT}/3rdparty/fmod/libs/osx
+	)
+
+	if(NOT "${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+		message(FATAL_ERROR "only 64 bit builds are supported")
+	endif()
+
+elseif(WIN32)
+	set(PRJ_TARGET_WINDOWS			1)
+	set(PRJ_SHADERS_PLATFORM		"windows")
+	set(PRJ_SHADERS_ARGS_VS			-p vs_4_0 -O 3)
+	set(PRJ_SHADERS_ARGS_FS			-p ps_4_0 -O 3)
+	set(PRJ_BUILD_EXECUTABLE		1)
+	#set(PRJ_FMOD_AVAILABLE			1)
+
+	link_directories(
+		${ROOT}/3rdparty/bgfx/libs/vs2015_x64
+		${ROOT}/3rdparty/fmod/libs/vs2015_x64
+	)
+
+	if(NOT "${CMAKE_SIZEOF_VOID_P}" EQUAL "8")
+		message(FATAL_ERROR "only 64 bit builds are supported")
+	endif()
+
+	# replace /MD -> /MT
+	set(compiler_flags
+		CMAKE_CXX_FLAGS
+		CMAKE_CXX_FLAGS_DEBUG
+		CMAKE_CXX_FLAGS_RELEASE
+		CMAKE_C_FLAGS
+		CMAKE_C_FLAGS_DEBUG
+		CMAKE_C_FLAGS_RELEASE
+	)
+	foreach(compiler_flag ${compiler_flags})
+		string(REPLACE "/MD" "/MT" ${compiler_flag} "${${compiler_flag}}")
+	endforeach()
+
+	# hotfix bgfx debug build for non release builds on Windows, because of STL
+	if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+		set(BGFX_DEBUG 1)
+	endif()
+else()
+	message(FATAL_ERROR "unknown target")
+endif()
+
+# hosts
+if(CMAKE_HOST_APPLE)
+	set(PRJ_HOST_MACOS			1)
+	set(PRJ_SHADERS_COMPILER	"${ROOT}/3rdparty/bgfx/bin/shaderc_osx")
+	set(PRJ_TEXTURE_COMPILER	"${ROOT}/3rdparty/bgfx/bin/texturec_osx")
+	set(PRJ_BIN2C				"${ROOT}/3rdparty/bin2c/bin2c")
+	set(PRJ_PYTHON				"python")
+
+elseif(CMAKE_HOST_WIN32)
+	set(PRJ_HOST_WINDOWS		1)
+	set(PRJ_SHADERS_COMPILER	"${ROOT}/3rdparty/bgfx/bin/shaderc_win.exe")
+	set(PRJ_TEXTURE_COMPILER	"${ROOT}/3rdparty/bgfx/bin/texturec_win.exe")
+	set(PRJ_BIN2C				"${ROOT}/3rdparty/bin2c/bin2c.exe")
+	if(PRJ_TARGET_EMSCRIPTEN)
+		# Emscripten overrides python but we still want to use system python because of installed packages
+		set(PRJ_PYTHON			py -3)
+	else()
+		set(PRJ_PYTHON			"python")
+	endif()
+
+else()
+	message(FATAL_ERROR "unknown host")
+endif()
+
+# ----------------------------------------------------------------------------------
+# built-in shaders and textures
+
+set(gen_src)
+
+list(APPEND gen_src ${ROOT}/src/shaders/tex_color_vs.h)
+add_custom_command(
+	OUTPUT ${ROOT}/src/shaders/tex_color_vs.h
+	COMMAND ${PRJ_SHADERS_COMPILER}
+	-i 3rdparty/bgfx/include --type vertex --platform ${PRJ_SHADERS_PLATFORM} ${PRJ_SHADERS_ARGS_VS}
+	-f src/shaders/tex_color.vs -o src/shaders/tex_color_vs.h --bin2c tex_color_vs
+	DEPENDS src/shaders/tex_color.vs ${PRJ_SHADERS_COMPILER}
+	WORKING_DIRECTORY ${ROOT}
+)
+
+list(APPEND gen_src ${ROOT}/src/shaders/tex_color_fs.h)
+add_custom_command(
+	OUTPUT ${ROOT}/src/shaders/tex_color_fs.h
+	COMMAND ${PRJ_SHADERS_COMPILER}
+	-i 3rdparty/bgfx/include --type fragment --platform ${PRJ_SHADERS_PLATFORM} ${PRJ_SHADERS_ARGS_FS}
+	-f src/shaders/tex_color.fs -o src/shaders/tex_color_fs.h --bin2c tex_color_fs
+	DEPENDS src/shaders/tex_color.fs ${PRJ_SHADERS_COMPILER}
+	WORKING_DIRECTORY ${ROOT}
+)
+
+list(APPEND gen_src ${ROOT}/src/_missing_texture.h)
+add_custom_command(
+	OUTPUT ${ROOT}/src/_missing_texture.h
+	COMMAND ${PRJ_TEXTURE_COMPILER} -f src/_missing_texture.png -o src/_missing_texture.ktx -t RGBA8
+	COMMAND ${PRJ_BIN2C} -n _missing_texture -o src/_missing_texture.h src/_missing_texture.ktx
+	DEPENDS src/_missing_texture.png ${PRJ_TEXTURE_COMPILER} ${PRJ_BIN2C}
+	WORKING_DIRECTORY ${ROOT}
+)
+
+# ----------------------------------------------------------------------------------
+# build resources
+
+# TODO
+
+# ----------------------------------------------------------------------------------
+# build sources
+
+file(GLOB_RECURSE src
+	${ROOT}/3rdparty/bgfx/include/*.h
+	${ROOT}/3rdparty/chipmunk2d/include/*.h
+	${ROOT}/3rdparty/chipmunk2d/src/*.c
+	${ROOT}/3rdparty/css_layout/*.h
+	${ROOT}/3rdparty/css_layout/*.c
+	${ROOT}/3rdparty/entrypoint/*.h
+	${ROOT}/3rdparty/entrypoint/*.c
+	${ROOT}/3rdparty/fmod/include/*.h
+	${ROOT}/3rdparty/fontstash/*.h
+	${ROOT}/3rdparty/gb/*.h
+	${ROOT}/3rdparty/gb/*.c
+	${ROOT}/3rdparty/ios_publishing/*.h
+	${ROOT}/3rdparty/ios_publishing/*.c
+	${ROOT}/3rdparty/jsmn/*.h
+	${ROOT}/3rdparty/jsmn/*.c
+	${ROOT}/3rdparty/klib/*.h
+	${ROOT}/3rdparty/libyaml/include/*.h
+	${ROOT}/3rdparty/libyaml/src/*.c
+	${ROOT}/3rdparty/nanomsg/include/*.h
+	${ROOT}/3rdparty/nativefonts/*.h
+	${ROOT}/3rdparty/nativefonts/*.c
+	${ROOT}/3rdparty/nativefonts/*.cpp
+	${ROOT}/3rdparty/poly2tri/*.h
+	${ROOT}/3rdparty/poly2tri/*.cpp
+	${ROOT}/3rdparty/ringbuf/*.h
+	${ROOT}/3rdparty/ringbuf/*.c
+	${ROOT}/3rdparty/spine-c/include/*.h
+	${ROOT}/3rdparty/spine-c/*.c
+	${ROOT}/3rdparty/stb/*.h
+	${ROOT}/3rdparty/stb/*.c
+	${ROOT}/3rdparty/tinycthread/*.h
+	${ROOT}/3rdparty/tinycthread/*.c
+	${ROOT}/3rdparty/tlsf/*.h
+	${ROOT}/3rdparty/tlsf/*.c
+	${ROOT}/src/*.h
+	${ROOT}/src/*.c
+	${ROOT}/examples/*.h
+	${ROOT}/examples/*.c
+)
+
+if(PRJ_TARGET_IOS OR PRJ_TARGET_MACOS)
+	file(GLOB_RECURSE src_objc
+		${ROOT}/3rdparty/entrypoint/*.m
+		${ROOT}/src/*.m
+	)
+	list(APPEND src ${src_objc})
+endif()
+
+list(APPEND src ${gen_src})
+
+if(PRJ_BUILD_EXECUTABLE)
+	add_executable(${PRJ_TARGET} ${src})
+elseif(PRJ_BUILD_SHARED_LIB)
+	add_library(${PRJ_TARGET} SHARED ${src})
+else()
+	# in case if we're not building final executable here
+	# always build all generated files
+	add_custom_target(${PRJ_TARGET}_builtins ALL DEPENDS ${src})
+endif()
+
+if(PRJ_BUILD_EXECUTABLE OR PRJ_BUILD_SHARED_LIB)
+	target_compile_definitions(
+		${PRJ_TARGET} PRIVATE
+		YAML_DECLARE_STATIC
+		YAML_DECLARE_STATIC
+		YAML_VERSION_MAJOR=0
+		YAML_VERSION_MINOR=1
+		YAML_VERSION_PATCH=5
+		YAML_VERSION_STRING=\"0.1.5\"
+	)
+
+	target_include_directories(
+		${PRJ_TARGET} PRIVATE
+		${ROOT}/3rdparty/bgfx/include
+		${ROOT}/3rdparty/chipmunk2d/include
+		${ROOT}/3rdparty/css_layout
+		${ROOT}/3rdparty/entrypoint
+		${ROOT}/3rdparty/fmod/include
+		${ROOT}/3rdparty/fontstash
+		${ROOT}/3rdparty/gb
+		${ROOT}/3rdparty/ios_publishing
+		${ROOT}/3rdparty/jsmn
+		${ROOT}/3rdparty/klib
+		${ROOT}/3rdparty/libyaml/include
+		${ROOT}/3rdparty/nanomsg/include
+		${ROOT}/3rdparty/nativefonts
+		${ROOT}/3rdparty/poly2tri
+		${ROOT}/3rdparty/ringbuf
+		${ROOT}/3rdparty/spine-c/include
+		${ROOT}/3rdparty/stb
+		${ROOT}/3rdparty/tinycthread
+		${ROOT}/3rdparty/tlsf
+		${ROOT}/src/helpers
+		${ROOT}/src/shaders
+		${ROOT}/src
+		${ROOT}/examples/00-helloworld
+	)
+
+	if(BGFX_DEBUG)
+		target_link_libraries(
+			${PRJ_TARGET}
+			bgfxDebug
+			bimgDebug
+			bxDebug
+		)
+	else()
+		target_link_libraries(
+			${PRJ_TARGET}
+			bgfxRelease
+			bimgRelease
+			bxRelease
+		)
+	endif()
+
+	if(PRJ_FMOD_AVAILABLE)
+		target_compile_definitions(${PRJ_TARGET} PRIVATE FMOD_AVAILABLE)
+		if(PRJ_TARGET_WINDOWS)
+			target_link_libraries(${PRJ_TARGET} fmod64_vc fmodstudio64_vc)
+		else()
+			target_link_libraries(${PRJ_TARGET} fmod fmodstudio)
+		endif()
+	endif()
+
+	if(PRJ_TARGET_EMSCRIPTEN)
+		target_compile_options(${PRJ_TARGET} PUBLIC "-fomit-frame-pointer" "-O3" "-s" "AGGRESSIVE_VARIABLE_ELIMINATION=1" "-g0")
+		# add --preload-file ${ROOT}/res@/ to bundle resources
+		set_target_properties(${PRJ_TARGET} PROPERTIES LINK_FLAGS "-fno-rtti -fno-exceptions -s TOTAL_MEMORY=256000000 --memory-init-file 1 -O3")
+		add_custom_command(TARGET ${PRJ_TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ROOT}/tools/emscripten-template/index.html" $<TARGET_FILE_DIR:${PRJ_TARGET}>)
+
+	elseif(PRJ_TARGET_ANDROID)
+		target_compile_options(${PRJ_TARGET} PUBLIC "-O3")
+		target_include_directories(${PRJ_TARGET} PRIVATE ${ANDROID_NDK}/sources/android/native_app_glue)
+		target_link_libraries(${PRJ_TARGET} android log EGL GLESv2)
+
+	elseif(PRJ_TARGET_IOS)
+		target_compile_options(${PRJ_TARGET} PUBLIC "-fobjc-arc")
+
+	elseif(PRJ_TARGET_MACOS)
+		target_compile_options(${PRJ_TARGET} PUBLIC "-fobjc-arc")
+		target_link_libraries(${PRJ_TARGET} "-framework Cocoa" "-framework CoreGraphics" "-framework Quartz" "-framework Metal")
+		if(PRJ_FMOD_AVAILABLE)
+			add_custom_command(TARGET ${PRJ_TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ROOT}/3rdparty/fmod/libs/osx/libfmod.dylib" $<TARGET_FILE_DIR:${PRJ_TARGET}>)
+			add_custom_command(TARGET ${PRJ_TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ROOT}/3rdparty/fmod/libs/osx/libfmodstudio.dylib" $<TARGET_FILE_DIR:${PRJ_TARGET}>)
+		endif()
+
+	elseif(PRJ_TARGET_WINDOWS)
+		target_compile_definitions(${PRJ_TARGET} PRIVATE _CRT_SECURE_NO_WARNINGS)
+		target_compile_definitions(${PRJ_TARGET} PRIVATE _ITERATOR_DEBUG_LEVEL=0)
+		if(PRJ_FMOD_AVAILABLE)
+			add_custom_command(TARGET ${PRJ_TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ROOT}/3rdparty/fmod/bin/fmod64.dll" $<TARGET_FILE_DIR:${PRJ_TARGET}>)
+			add_custom_command(TARGET ${PRJ_TARGET} POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different "${ROOT}/3rdparty/fmod/bin/fmodstudio64.dll" $<TARGET_FILE_DIR:${PRJ_TARGET}>)
+		endif()
+	endif()
+endif()

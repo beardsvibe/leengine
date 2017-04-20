@@ -4,7 +4,8 @@
 // actual implementation is generated with psd slice tool (or from code)
 
 #include "render.h"
-#include "text.h"
+#include "render_text.h"
+#include "render_9slice.h"
 
 typedef font_t (*scene_load_font_t)(const char * name); // TODO temporarely solution
 
@@ -45,6 +46,9 @@ struct scene_sprite_t
 	r_colorf_t diffuse;
 
 	tex_t tex;
+
+	// if present, render current sprite as 9slice
+	tex_9slice_t * tex_9slice;
 };
 
 struct scene_text_t
@@ -52,10 +56,12 @@ struct scene_text_t
 	scene_entity_t * entity;
 
 	const char * text;
+	const char * original_text;
 
 	float size_in_pt;
 	font_t font;
 	r_colorf_t diffuse;
+	bool use_native_font;
 
 	bool shadow;
 	float shadow_x, shadow_y;
@@ -72,6 +78,9 @@ struct scene_t
 	tex_t ** textures;
 	size_t textures_count;
 
+	tex_9slice_t ** tex_9slices;
+	size_t tex_9slices_count;
+
 	scene_sprite_t ** sprites;
 	size_t sprites_count;
 
@@ -87,7 +96,7 @@ void scene_draw_entity(scene_entity_t * entity);
 
 // -----------------------------------------------------------------------------
 
-#define SCENE_MAX_ENT_SEARCH_COUNT 64
+#define SCENE_MAX_ENT_SEARCH_COUNT 128
 typedef struct
 {
 	scene_entity_t * entities[SCENE_MAX_ENT_SEARCH_COUNT];
@@ -96,3 +105,6 @@ typedef struct
 scene_entities_list_t scene_get_entities_for_prefix(scene_t * scene, const char * prefix);
 void scene_set_entities_visibility(scene_entities_list_t * entities, bool visible);
 void scene_set_entities_visibility_for_prefix(scene_t * scene, const char * prefix, bool visible);
+
+// AABB in parent space
+gbRect2 sprite_AABB(scene_sprite_t * sprite);

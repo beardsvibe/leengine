@@ -7,7 +7,7 @@
 #include <string.h>
 #endif
 
-#if !defined(__APPLE__) || !TARGET_OS_IOS
+#if (!defined(__APPLE__) || !TARGET_OS_IOS) && (!defined(__ANDROID__))
 FILE * fsopen(const char * filename, const char * mode)
 {
 	#ifdef EMSCRIPTEN

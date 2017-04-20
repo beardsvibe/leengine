@@ -8,7 +8,7 @@
 
 static trns_t _tr_muls(trns_t ** muls, size_t count) // small helper to multiply list of matrices
 {
-	trns_t ret;
+	trns_t ret = {0};
 	for(size_t i = 0; i < count; ++i)
 		if(i)
 			ret = tr_mul(ret, *muls[i]);
@@ -111,7 +111,7 @@ void tr_set_view_prj(uint8_t viewid, trns_t prj, trns_t view, gbVec2 viewport_po
 	ctx.vpv = _tr_muls(muls2, sizeof(muls2) / sizeof(muls2[0]));
 
 	// set bgfx stuff
-	bgfx_set_view_rect(viewid, viewport_pos.x, viewport_pos.y, viewport_size.x, viewport_size.y);
+	bgfx_set_view_rect(viewid, (uint16_t)viewport_pos.x, (uint16_t)viewport_pos.y, (uint16_t)viewport_size.x, (uint16_t)viewport_size.y);
 	bgfx_set_view_transform(viewid, _to_bgfx(ctx.view).e, _to_bgfx(ctx.prj).e);
 }
 
@@ -127,6 +127,16 @@ void tr_set_world(trns_t model)
 	bgfx_set_transform(_to_bgfx(ctx.world).e, 1);
 }
 
+gbVec2 tr_prj(gbVec2 pos)
+{
+	// TODO maybe add some caching here?
+	trns_t vpvw = tr_mul(ctx.vpv, ctx.world);
+
+	gbVec4 ret;
+	gb_mat4_mul_vec4(&ret, &vpvw, gb_vec4(pos.x, pos.y, 0.0f, 1.0f));
+	return ret.xy;
+}
+
 gbVec2 tr_inverted_prj(gbVec2 pos)
 {
 	// TODO maybe add some caching here?
@@ -137,4 +147,14 @@ gbVec2 tr_inverted_prj(gbVec2 pos)
 	gbVec4 ret;
 	gb_mat4_mul_vec4(&ret, &inv_vpvw, gb_vec4(pos.x, pos.y, 0.0f, 1.0f));
 	return ret.xy;
+}
+
+gbRect2 gb_rect2_union(gbRect2 a, gbRect2 b)
+{
+	float tlx = gb_min(a.pos.x, b.pos.x);
+	float tly = gb_min(a.pos.y, b.pos.y);
+	float brx = gb_max(a.pos.x + a.dim.x, b.pos.x + b.dim.x);
+	float bry = gb_max(a.pos.y + a.dim.y, b.pos.y + b.dim.y);
+	return gb_rect2(gb_vec2(tlx, tly),
+					gb_vec2(brx - tlx, bry - tly));
 }

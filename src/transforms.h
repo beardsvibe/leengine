@@ -18,4 +18,7 @@ void tr_set_view_prj(uint8_t viewid, trns_t prj, trns_t view, gbVec2 viewport_po
 void tr_set_parent_world(trns_t parent_world);
 void tr_set_world(trns_t model);
 
+gbVec2 tr_prj(gbVec2 pos);
 gbVec2 tr_inverted_prj(gbVec2 pos);
+
+gbRect2 gb_rect2_union(gbRect2 a, gbRect2 b); // TODO remove when will be added to gb_math

@@ -38,3 +38,4 @@ size_t strlcpy(char * dst, const char * src, size_t size);
 
 // C doesn't have strcmp in prefix form, wtf
 bool startswith(const char * string_starts, const char * with_prefix);
+bool endswith(const char * string_ends, const char * with_prefix);

@@ -282,7 +282,7 @@ const char * dstr(dict_t * dict, const char * default_value) {return dict && dic
 int          dint(dict_t * dict, int default_value)          {return dict && dict->value ? atoi(dict->value) : default_value;}
 uint32_t     duint32(dict_t * dict, uint32_t default_value)  {return dict && dict->value ? strtoul(dict->value, NULL, 10) : default_value;}
 uint64_t     duint64(dict_t * dict, uint64_t default_value)  {return dict && dict->value ? strtoull(dict->value, NULL, 10) : default_value;}
-float        dfloat(dict_t * dict, float default_value)      {return dict && dict->value ? atof(dict->value) : default_value;}
+float        dfloat(dict_t * dict, float default_value)      {return dict && dict->value ? (float)atof(dict->value) : default_value;}
 const char * dgstr(dict_t * dict, const char * key, const char * default_value) {return dstr(   dget(dict, key), default_value);}
 int          dgint(dict_t * dict, const char * key, int default_value)          {return dint(   dget(dict, key), default_value);}
 uint32_t     dguint32(dict_t * dict, const char * key, uint32_t default_value)  {return duint32(dget(dict, key), default_value);}

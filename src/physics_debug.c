@@ -22,7 +22,7 @@ static void _line(cpVect a, cpVect b, cpSpaceDebugColor c)
 	if(ctx.lines_count >= MAX_LINES)
 		return;
 	line_t * l = &ctx.lines[ctx.lines_count];
-	l->x1 = a.x; l->y1 = a.y; l->x2 = b.x; l->y2 = b.y;
+	l->x1 = (float)a.x; l->y1 = (float)a.y; l->x2 = (float)b.x; l->y2 = (float)b.y;
 	l->color = r_color(c.r, c.g, c.b, c.a);
 	ctx.lines_count++;
 	if(ctx.lines_count >= MAX_LINES)
@@ -31,12 +31,12 @@ static void _line(cpVect a, cpVect b, cpSpaceDebugColor c)
 
 static void _r_circle(cpVect pos, cpFloat angle, cpFloat radius, cpSpaceDebugColor outline_color, cpSpaceDebugColor fill_color, cpDataPointer data)
 {
-	float lx = radius + pos.x, ly = pos.y;
+	float lx = (float)radius + (float)pos.x, ly = (float)pos.y;
 	float steps = 10.0f;
-	float k = 2.0f * M_PI / steps;
+	float k = 2.0f * (float)M_PI / steps;
 	for(float a = 0.0f; a <= 2.0f * M_PI; a += k)
 	{
-		float x = cosf(a + k) * radius + pos.x, y = sinf(a + k) * radius + pos.y;
+		float x = cosf(a + k) * (float)radius + (float)pos.x, y = sinf(a + k) * (float)radius + (float)pos.y;
 		_line(cpv(x, y), cpv(lx, ly), fill_color);
 		lx = x; ly = y;
 	}
@@ -92,7 +92,7 @@ cpSpaceDebugDrawOptions * p_debug_opt()
 void p_debug_flush(float scale)
 {
 	bgfx_transient_vertex_buffer_t vt;
-	bgfx_alloc_transient_vertex_buffer(&vt, ctx.lines_count * 2, r_decl());
+	bgfx_alloc_transient_vertex_buffer(&vt, (uint32_t)ctx.lines_count * 2, r_decl());
 	vrtx_t * vert = (vrtx_t*)vt.data;
 
 	for(size_t i = 0; i < ctx.lines_count; ++i)
@@ -113,13 +113,13 @@ void p_debug_flush(float scale)
 	}
 
 	bgfx_transient_index_buffer_t it;
-	bgfx_alloc_transient_index_buffer(&it, ctx.lines_count * 2);
+	bgfx_alloc_transient_index_buffer(&it, (uint32_t)ctx.lines_count * 2);
 	uint16_t * id = (uint16_t*)it.data;
 
 	for(size_t i = 0; i < ctx.lines_count; ++i)
 	{
-		id[i * 2 + 0] = i * 2 + 0;
-		id[i * 2 + 1] = i * 2 + 1;
+		id[i * 2 + 0] = (uint16_t)(i * 2 + 0);
+		id[i * 2 + 1] = (uint16_t)(i * 2 + 1);
 	}
 
 	tr_set_world(tr_identity());
