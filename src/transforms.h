@@ -16,7 +16,10 @@ void   tr_debug(trns_t tr);
 
 void tr_set_view_prj(uint8_t viewid, trns_t prj, trns_t view, gbVec2 viewport_pos, gbVec2 viewport_size);
 void tr_set_parent_world(trns_t parent_world);
+trns_t tr_get_parent_world();
 void tr_set_world(trns_t model);
+trns_t tr_get_model();
+trns_t tr_get_world();
 
 gbVec2 tr_prj(gbVec2 pos);
 gbVec2 tr_inverted_prj(gbVec2 pos);

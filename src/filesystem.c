@@ -15,13 +15,29 @@ FILE * fsopen(const char * filename, const char * mode)
 	if(memcmp(filename, "res/", 4) == 0)
 		filename = filename + 4;
 	else
-		printf("looks like your file '%s' is not in res, this is not currently supported on emscripten :(\n");
+		printf("looks like your file '%s' is not in res, this is not currently supported on emscripten :(\n", filename);
 	#endif
 	return fopen(filename, mode);
 }
 void _fs_path(const char * filename, char * buf, size_t size)
 {
+	#ifdef EMSCRIPTEN
+	// TODO remove this hack
+	if(memcmp(filename, "res/", 4) == 0)
+		filename = filename + 4;
+	else
+		printf("looks like your file '%s' is not in res, this is not currently supported on emscripten :(\n", filename);
+	#endif
 	strlcpy(buf, filename, size);
+}
+
+FILE * fsopen_gamesave(const char * filename, const char * mode)
+{
+	#ifdef EMSCRIPTEN
+	return NULL;
+	#else
+	return fopen(filename, mode);
+	#endif
 }
 #endif
 
@@ -45,7 +61,7 @@ static void _write_to_fsopen(void * context, void * data, int size)
 	}
 }
 
-STBIWDEF int stbi_write_png_fs(char const * filename, int w, int h, int comp, const void * data, int stride_in_bytes)
-{
-	return stbi_write_png_to_func(_write_to_fsopen, (void*)filename, w, h, comp, data, stride_in_bytes);
-}
+//STBIWDEF int stbi_write_png_fs(char const * filename, int w, int h, int comp, const void * data, int stride_in_bytes)
+//{
+//	return stbi_write_png_to_func(_write_to_fsopen, (void*)filename, w, h, comp, data, stride_in_bytes);
+//}

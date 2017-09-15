@@ -1,3 +1,5 @@
+#if 0
+
 #pragma once
 
 #include <chipmunk/chipmunk.h>
@@ -15,4 +17,6 @@ void ChipmunkDebugDrawPolygon(int count, const cpVect * verts, cpFloat radius, c
 void ChipmunkDebugDrawDot(cpFloat size, cpVect pos, cpSpaceDebugColor fillColor);
 static inline cpSpaceDebugColor RGBAColor(float r, float g, float b, float a) {cpSpaceDebugColor color = {r, g, b, a}; return color;}
 static inline cpSpaceDebugColor LAColor(float l, float a) {cpSpaceDebugColor color = {l, l, l, a}; return color;}
+#endif
+
 #endif

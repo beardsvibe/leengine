@@ -24,9 +24,12 @@ static float rubber_band(float position, float min, float max, float dimension)
 {
 	if(position >= min && position <= max)
 		return position;
+	if(min > max) // special case when scrolling surface is bigger than content surface
+		min = max = (min + max) / 2.0f;
 	bool is_under_min = position < min ? true : false;
 	float distance_from_edge = is_under_min ? min - position : position - max;
-	float rubber_band_pos = (distance_from_edge * dimension * RUBBER_BAND_CONSTANT) / (dimension + RUBBER_BAND_CONSTANT * distance_from_edge);
+	float koef = (dimension + RUBBER_BAND_CONSTANT * distance_from_edge);
+	float rubber_band_pos = fabsf(koef) > 0.0f ? (distance_from_edge * dimension * RUBBER_BAND_CONSTANT) / koef : (is_under_min ? min : max);
 	return is_under_min ? min - rubber_band_pos : max + rubber_band_pos;
 }
 
@@ -78,13 +81,13 @@ static float calculate_average_final_speed(const scrollview_t * sv)
 
 	for(uint8_t i = 1; i < sv->drag_frames_count; ++i)
 	{
-		float spd = (sv->drag_frames[i - 1].pos - sv->drag_frames[i].pos) / sv->drag_frames[i - 1].dt;
+		float spd = sv->drag_frames[i - 1].dt > 0.0f ? (sv->drag_frames[i - 1].pos - sv->drag_frames[i].pos) / sv->drag_frames[i - 1].dt : 0.0f;
 		float koef = (i > roll_off) ? (1.0f / (float)(i - roll_off + 1)) : 1.0f;
 		spd_total += spd * koef;
 		koef_sum += koef;
 	}
 
-	return spd_total / koef_sum;
+	return koef_sum > 0.0f ? spd_total / koef_sum : 0.0f;
 }
 
 static void touch_end(scrollview_t * sv)
@@ -104,7 +107,7 @@ static void touch_end(scrollview_t * sv)
 	if(sv->snap_with_interval > 0.0f)
 	{
 		float k = sv->snap_with_interval;
-		sv->view_target_pos = k * (int)((sv->view_target_pos + k / 2.0f) / k);
+		sv->view_target_pos = fabsf(k) > 0.0f ? k * (int)((sv->view_target_pos + k / 2.0f) / k) : sv->view_target_pos;
 	}
 
 	// set initial velocity of critical damped spring model
@@ -120,14 +123,17 @@ static void touch_end(scrollview_t * sv)
 
 static void animate(scrollview_t * sv, float dt)
 {
-	// as soon as we get out of bounds, force different case even if we go back to bounds
 	if(sv->view_current_pos < sv->view_pos_min || sv->view_current_pos > view_pos_max_adj(sv))
+	{
+		// as soon as we get out of bounds, force different case even if we go back to bounds
 		sv->view_anim_out_of_bounds = true;
+	}
 
 	if(sv->view_anim_out_of_bounds)
 	{
-		// hard clamp target position to be in bounds
-		if(sv->view_target_pos < sv->view_pos_min)
+		if(view_pos_max_adj(sv) < sv->view_pos_min) // special case when scrolling surface is bigger than content surface
+			sv->view_target_pos = (sv->view_pos_min + view_pos_max_adj(sv)) / 2.0f;
+		else if(sv->view_target_pos < sv->view_pos_min) // hard clamp target position to be in bounds
 			sv->view_target_pos = sv->view_pos_min;
 		else if(sv->view_target_pos > view_pos_max_adj(sv))
 			sv->view_target_pos = view_pos_max_adj(sv);

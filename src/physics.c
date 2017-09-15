@@ -1,3 +1,4 @@
+#if 0
 
 #include "physics.h"
 #include "physics_debug.h"
@@ -28,9 +29,9 @@ void _p_init()
 
 void _p_deinit()
 {
-	cpSpaceEachShape(ctx.space, _shape_free, ctx.space);
-	cpSpaceEachConstraint(ctx.space, _constraint_free, ctx.space);
-	cpSpaceEachBody(ctx.space, _body_free, ctx.space);
+	cpSpaceEachShape(ctx.space, (cpSpaceShapeIteratorFunc)_shape_free, ctx.space);
+	cpSpaceEachConstraint(ctx.space, (cpSpaceConstraintIteratorFunc)_constraint_free, ctx.space);
+	cpSpaceEachBody(ctx.space, (cpSpaceBodyIteratorFunc)_body_free, ctx.space);
 	cpSpaceFree(ctx.space);
 }
 
@@ -52,7 +53,7 @@ cpSpace * p_space() {return ctx.space;}
 void p_set_scale(float scale)
 {
 	ctx.scale = scale;
-	cpSpaceSetGravity(ctx.space, cpv(0, -980.0f / ctx.scale));
+	cpSpaceSetGravity(ctx.space, cpv(0, -250.0f / ctx.scale));
 	cpSpaceSetSleepTimeThreshold(ctx.space, 1.0f);
 	cpSpaceSetCollisionSlop(ctx.space, 0.05f / ctx.scale);
 }
@@ -61,6 +62,8 @@ float p_scale() {return ctx.scale;}
 
 void p_remove_body(cpBody * body)
 {
-	cpBodyEachShape(body, _body_shape_free, ctx.space);
+	cpBodyEachShape(body, (cpBodyShapeIteratorFunc)_body_shape_free, ctx.space);
 	_body_free(body, ctx.space);
 }
+
+#endif

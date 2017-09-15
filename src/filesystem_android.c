@@ -1,11 +1,11 @@
 
 #if defined(__ANDROID__)
 
-#include "filesystem.h"
-#include "portable.h"
-
 #define ENTRYPOINT_CTX
 #include "entrypoint.h"
+
+#include "filesystem.h"
+#include "portable.h"
 
 #include <android/asset_manager_jni.h>
 
@@ -25,7 +25,7 @@ FILE * fsopen(const char * filename, const char * mode)
 		return NULL;
 
 	AAsset * asset = AAssetManager_open(ep_ctx()->app->activity->assetManager, filename, AASSET_MODE_UNKNOWN);
-    if(asset)
+	if(asset)
 		return funopen(asset, asset_read, NULL, asset_seek, asset_close);
 	else
 		return NULL;
@@ -38,6 +38,11 @@ void _fs_path(const char * filename, char * buf, size_t size)
 	if(memcmp(filename, "res/", 4) == 0)
 		filename = filename + 4;
 	snprintf(buf, size, "file:///android_asset/%s", filename);
+}
+
+FILE * fsopen_gamesave(const char * filename, const char * mode)
+{
+	return NULL;
 }
 
 #endif

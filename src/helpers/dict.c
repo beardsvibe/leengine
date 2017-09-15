@@ -1,9 +1,10 @@
+#ifdef LIBYAML_AVAILABLE
 #include "dict.h"
 #include "portable.h"
 #include "filesystem.h"
 #include <stdlib.h>
 #include <yaml.h>
-#include <jsmn.h>
+//#include <jsmn.h>
 #include <assert.h>
 
 dict_t * _d_yaml_to_dict(yaml_document_t * doc, yaml_node_t * node)
@@ -102,6 +103,7 @@ dict_t * dparsey(const char * yaml_filename)
 	return ret;
 }
 
+#if 0
 dict_t * _d_jsmn_to_dict(const char * js, jsmntok_t * tokens, size_t count, size_t * pos)
 {
 	if(*pos > count)
@@ -163,7 +165,9 @@ dict_t * _d_jsmn_to_dict(const char * js, jsmntok_t * tokens, size_t count, size
 	}
 	return dict;
 }
+#endif
 
+#if 0
 dict_t * dparsejs(const char * json_string)
 {
 	jsmn_parser jp = {0};
@@ -199,6 +203,7 @@ dict_t * dparsejs(const char * json_string)
 	//dtraverse(r, 0);
 	return r;
 }
+#endif
 
 void dfree(dict_t * dict)
 {
@@ -292,3 +297,4 @@ bool         dgstr2(char * buffer, size_t buffer_length, dict_t * dict, const ch
 {
 	return strlcpy(buffer, dgstr(dict, key, default_value), buffer_length) < buffer_length;
 }
+#endif

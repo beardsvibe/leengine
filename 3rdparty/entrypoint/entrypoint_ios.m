@@ -256,7 +256,7 @@ bool ep_retina()
 
 #ifdef ENTRYPOINT_PROVIDE_TIME
 
-double ep_time()
+double ep_delta_time()
 {
 	if(ctx.timebase_info.denom == 0)
 	{
@@ -274,6 +274,21 @@ double ep_time()
 void ep_sleep(double seconds)
 {
 	usleep((useconds_t)(seconds * 1000000.0));
+}
+
+#endif
+
+// -----------------------------------------------------------------------------
+
+#ifdef ENTRYPOINT_PROVIDE_LOG
+
+void ep_log(const char * message, ...)
+{
+	va_list args;
+	va_start(args, message);
+	vprintf(message, args);
+	fflush(stdout);
+	va_end(args);
 }
 
 #endif
@@ -298,18 +313,12 @@ uint32_t ep_kchar() {return 0;}
 
 #ifdef ENTRYPOINT_IOS_APPDELEGATE
 
-@interface EntryPointViewController : UIViewController
-@property (strong, nonatomic) EntryPointView * view;
-@end
 @implementation EntryPointViewController
 @dynamic view;
 - (void)loadView { self.view = [[EntryPointView alloc] initWithFrame:UIScreen.mainScreen.bounds]; }
 @end
 
 // TODO sometimes it complains on "[App] if we're in the real pre-commit handler we can't actually add any new fences due to CA restriction"
-@interface EntryPointAppDelegate : UIResponder <UIApplicationDelegate>
-@property (strong, nonatomic) UIWindow * window;
-@end
 @implementation EntryPointAppDelegate
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)launchOptions
 {

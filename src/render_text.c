@@ -2,6 +2,7 @@
 #include "render_text.h"
 #include "render.h"
 #include "filesystem.h"
+#include "portable.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -11,7 +12,7 @@
 #include <fontstash.h>
 
 #if !defined(EMSCRIPTEN) && !defined(__ANDROID__)
-	#define NF // support native fonts
+	//#define NF // support native fonts
 #endif
 
 #ifdef NF
@@ -36,6 +37,10 @@ static struct
 	bool tex_valid;
 	bgfx_texture_handle_t tex;
 	uint32_t tex_w, tex_h;
+
+	float draw_x, draw_y;
+	float shadow_x, shadow_y;
+	gbRect2 bounds;
 
 #ifdef NF
 	nf_font_t nf_font;
@@ -76,10 +81,18 @@ static void _tex_update(void * userptr, int* rect, const unsigned char* data)
 	uint32_t y = rect[1];
 
 	const bgfx_memory_t * mem = bgfx_alloc(w * h * 4);
+	bool once = true;
 	for(size_t j = 0; j < h; ++j)
 		for(size_t i = 0; i < w; ++i)
 		{
 			uint8_t c = data[(j + y) * ctx.tex_w + i + x];
+			if(c != 0 && c != 255 && once)
+			{
+				//ep_log("warn: blured font\n");
+				once = false;
+			}
+			//c = c > 127 ? 255 : 0; // hard clipping
+			//((r_color_t*)mem->data)[j * w + i] = r_coloru(c, c, c, 255);
 			((r_color_t*)mem->data)[j * w + i] = r_coloru(255, 255, 255, c);
 		}
 	bgfx_update_texture_2d(ctx.tex, 0, 0, x, y, w, h, mem, -1);
@@ -90,22 +103,29 @@ static void _draw(void * userptr, const float* verts, const float* tcoords, cons
 	if(!ctx.tex_valid)
 		return;
 
-	bgfx_transient_vertex_buffer_t vt;
-	bgfx_alloc_transient_vertex_buffer(&vt, nverts, r_decl());
-	vrtx_t * vert = (vrtx_t*)vt.data;
+	vrtx_t * vert = (vrtx_t*)alloca(nverts * sizeof(vrtx_t));
 	for(size_t i = 0; i < nverts; ++i)
 	{
-		vert[i].x = verts[i * 2 + 0];
-		vert[i].y = -verts[i * 2 + 1];
+		vert[i].x = verts[i * 2 + 0] - ctx.draw_x;
+		vert[i].y = ctx.draw_y - verts[i * 2 + 1];
 		vert[i].z = 0.0f;
 		vert[i].u = tcoords[i * 2 + 0];
 		vert[i].v = tcoords[i * 2 + 1];
 		vert[i].color = colors[i];
 	}
 
-	bgfx_transient_index_buffer_t it;
-	bgfx_alloc_transient_index_buffer(&it, nverts);
-	uint16_t * id = (uint16_t*)it.data;
+	// a bit of a hack
+	gbVec2 delta = gb_vec2_zero();
+	r_pixel_perfect_map(&delta.x, &delta.y, 2, 2);
+	delta.x += ctx.shadow_x; // shadows don't follow pixel perfect rules
+	delta.y += ctx.shadow_y;
+	for(size_t i = 0; i < nverts; ++i)
+	{
+		vert[i].x += delta.x;
+		vert[i].y += delta.y;
+	}
+
+	uint16_t * id = (uint16_t*)alloca(nverts * sizeof(uint16_t));
 	for(size_t i = 0; i < nverts / 3; ++i)
 	{
 		id[i * 3 + 0] = (uint16_t)(i * 3 + 0);
@@ -113,7 +133,7 @@ static void _draw(void * userptr, const float* verts, const float* tcoords, cons
 		id[i * 3 + 2] = (uint16_t)(i * 3 + 1);
 	}
 
-	r_submit_transient(&vt, &it, ctx.tex, 1.0f, 1.0f, 1.0f, 1.0f, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
+	r_render_transient(vert, nverts, id, nverts, ctx.tex, 1.0f, 1.0f, 1.0f, 1.0f, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
 }
 
 void _t_init(uint32_t w, uint32_t h)
@@ -208,7 +228,7 @@ font_t t_add(const char * fontname, const char * filename)
 }
 
 #ifdef NF // nativefonts rendering
-static void _r_nf(float r, float g, float b, float a, float * out_bounds, uint8_t align, const char * text)
+static void _r_nf(float r, float g, float b, float a, gbRect2 * out_bounds, uint8_t align, const char * text)
 {
 	khint_t k = kh_get_nf_text_map(ctx.nf_map, text);
 
@@ -220,7 +240,7 @@ static void _r_nf(float r, float g, float b, float a, float * out_bounds, uint8_
 		tn.h = 128;
 
 		// TODO add reusable pool later
-		
+
 		const bgfx_memory_t * bitmap_mem = bgfx_alloc(tn.w * tn.h * 4);
 		nf_print(bitmap_mem->data, tn.w, tn.h, ctx.nf_font, NULL, 0, &tn.aabb, text);
 		tn.tex = bgfx_create_texture_2d(tn.w, tn.h, false, 1, BGFX_TEXTURE_FORMAT_BGRA8, BGFX_TEXTURE_NONE, bitmap_mem);
@@ -251,37 +271,37 @@ static void _r_nf(float r, float g, float b, float a, float * out_bounds, uint8_
 
 	if(out_bounds)
 	{
-		out_bounds[0] = sprite_vertices[0].x;
-		out_bounds[1] = sprite_vertices[2].y;
-		out_bounds[2] = sprite_vertices[2].x;
-		out_bounds[3] = sprite_vertices[0].y;
+		out_bounds->pos.x = sprite_vertices[0].x;
+		out_bounds->pos.y = sprite_vertices[2].y;
+		out_bounds->dim.x = sprite_vertices[2].x - sprite_vertices[0].x;
+		out_bounds->dim.y = sprite_vertices[0].y - sprite_vertices[2].y;
 	}
 
-	const uint16_t sprite_indices[6] =
+	uint16_t sprite_indices[6] =
 	{
 		0, 1, 2, // TODO resolve dat shit with ccw vs cw
 		0, 2, 3,
 	};
 
-	bgfx_transient_vertex_buffer_t vt;
-	bgfx_alloc_transient_vertex_buffer(&vt, 4, r_decl());
-	memcpy(vt.data, sprite_vertices, sizeof(sprite_vertices));
-
-	bgfx_transient_index_buffer_t it;
-	bgfx_alloc_transient_index_buffer(&it, 6);
-	memcpy(it.data, sprite_indices, sizeof(sprite_indices));
-
 	// TODO support align
 
-	r_submit_transient(&vt, &it, t->tex, r, g, b, a, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
+	r_render_transient(sprite_vertices, 4, sprite_indices, 6, t->tex, r, g, b, a, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
 }
 #endif
 
 void r_text_ex2(font_t font,
-				float x, float y, float deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a,
-				float * out_bounds, uint8_t align, float size_in_pt, float spacing_in_pt,
-				const char * text)
+	float x, float y,
+	float deg, float rox, float roy,
+	float sx, float sy, float sox, float soy,
+	float r, float g, float b, float a,
+	bool shadow,
+	float shadow_x, float shadow_y,
+	float shadow_r, float shadow_g, float shadow_b, float shadow_a,
+	gbRect2 * out_bounds, uint8_t align, float size_in_pt, float spacing_in_pt,
+	const char * text)
 {
+	ctx.draw_x = x;
+	ctx.draw_y = y;
 	tr_set_world(tr_model_spr(x, y, deg, rox, roy, sx, sy, sox, soy, 1, 1, 0, 0));
 
 	#ifdef NF
@@ -301,23 +321,63 @@ void r_text_ex2(font_t font,
 	//vsnprintf(buffer, sizeof(buffer), text, args);
 	//va_end(args);
 
-	tr_set_world(tr_model_spr(x, y, deg, rox, roy, sx, sy, sox, soy, 1, 1, 0, 0));
-
 	fonsSetFont(ctx.fons, font);
 	fonsSetSize(ctx.fons, size_in_pt);
 	fonsSetSpacing(ctx.fons, spacing_in_pt);
-	fonsSetColor(ctx.fons, r_color(r, g, b, a));
 	fonsSetAlign(ctx.fons, align);
+	fonsSetBlur(ctx.fons, 0);
+	fonsSetColor(ctx.fons, r_color(r, g, b, a));
+
+	float temp_bounds[4];
+	fonsTextBounds(ctx.fons, x, y, text, NULL, temp_bounds);
+	// TODO do we need to transform them?
+	ctx.bounds.pos.x = temp_bounds[0];
+	ctx.bounds.pos.y = temp_bounds[1];
+	ctx.bounds.dim.x = temp_bounds[2] - temp_bounds[0];
+	ctx.bounds.dim.y = temp_bounds[3] - temp_bounds[1]; // ?
+
 	if(out_bounds)
+		*out_bounds = ctx.bounds;
+
+	if(shadow)
 	{
-		fonsTextBounds(ctx.fons, 0.0f, 0.0f, text, NULL, out_bounds);
-		// TODO do we need to transform them?
+		ctx.shadow_x = shadow_x;
+		ctx.shadow_y = shadow_y;
+		fonsPushState(ctx.fons);
+		fonsSetBlur(ctx.fons, 0.0f);
+		fonsSetColor(ctx.fons, r_color(shadow_r, shadow_g, shadow_b, shadow_a));
+		fonsDrawText(ctx.fons, x, y, text, NULL);
+		fonsPopState(ctx.fons);
 	}
-	fonsDrawText(ctx.fons, 0.0f, 0.0f, text, NULL);
+
+	ctx.shadow_x = 0.0f;
+	ctx.shadow_y = 0.0f;
+	fonsDrawText(ctx.fons, x, y, text, NULL);
 }
 
-void _r_text_debug_atlas(float k_size, bool blend)
+void _r_text_debug_atlas(float k_size)
 {
-	tr_set_world(tr_model_spr(0, 0, 0, 0, 0, 1, 1, 0, 0, ctx.tex_w * k_size, ctx.tex_h * k_size, 0, 0));
-	r_submit(_r_sprvbuf(), _r_spribuf(), ctx.tex, 1, 1, 1, 1, BGFX_STATE_DEFAULT_2D | (blend ? BGFX_STATE_BLEND_ALPHA : 0));
+	tr_set_world(tr_model_spr(
+		0.0f, 0.0f,
+		0.0f, 0.0f, 0.0f,
+		k_size, k_size, 0.0f, 0.0f,
+		1.0f, 1.0f, 0.0f, 0.0f
+	));
+	fonsDrawDebug(
+		ctx.fons,
+		-(float)ctx.tex_w * k_size / 2.0f,
+		(float)ctx.tex_h * (k_size / 2.0f - 1.0f)
+	);
+//	tex_t tex;
+//	tex.tex = ctx.tex;
+//	tex.w = (float)ctx.tex_w;
+//	tex.h = (float)ctx.tex_h;
+//	tex.pixel_w = ctx.tex_w;
+//	tex.pixel_h = ctx.tex_h;
+//	tex.u1 = 0.0f;
+//	tex.v1 = 0.0f;
+//	tex.u2 = 1.0f;
+//	tex.v2 = 1.0f;
+//	r_render_hint_no_alpha();
+//	r_render_sprite(tex, 0.0f, 0.0f, 0.0f, k_size, k_size);
 }

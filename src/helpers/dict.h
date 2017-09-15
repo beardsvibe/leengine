@@ -24,7 +24,7 @@ struct dict_t
 
 // parse, free, debug
 dict_t *     dparsey(const char * yaml_filename);
-dict_t *     dparsejs(const char * json_string);
+//dict_t *     dparsejs(const char * json_string);
 void         dfree(dict_t * dict);
 void         dtraverse(dict_t * dict, int level);
 

@@ -5,12 +5,18 @@
 
 void scene_free(scene_t * scene)
 {
+	if(scene->pass_callback)
+		scene->pass_callback(scene, SCENE_PASS_FREE);
+
 	for(size_t i = 0; i < scene->textures_count; ++i)
 		r_free(*scene->textures[i]);
 }
 
 void scene_draw(scene_t * scene)
 {
+	if(scene->pass_callback)
+		scene->pass_callback(scene, SCENE_PASS_DRAW);
+
 	for(size_t i = 0; i < scene->entities_count; ++i)
 	{
 		scene_entity_t * e = scene->entities[i];
@@ -37,17 +43,19 @@ void scene_draw_entity(scene_entity_t * e)
 				e->x, e->y,
 				e->r, e->rox, e->roy,
 				e->ox, e->oy,
-				c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a
+				c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a,
+				c->pixel_perfect
 			);
 		}
 		else
 		{
-			r_render_ex2(
+			r_render_sprite_ex(
 				c->tex,
 				e->x, e->y,
 				e->r, e->rox, e->roy,
 				e->sx, e->sy, e->sox, e->soy, e->ox, e->oy,
-				c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a
+				c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a,
+				c->pixel_perfect
 			);
 		}
 	}
@@ -55,32 +63,18 @@ void scene_draw_entity(scene_entity_t * e)
 	if(e->text)
 	{
 		scene_text_t * c = e->text;
-
-		if(c->shadow)
-		{
-			r_text_ex2(
-				c->use_native_font ? NATIVE_FONT : c->font,
-				e->x + c->shadow_x, e->y + c->shadow_y,
-				e->r, e->rox, e->roy,
-				e->sx, e->sy, e->sox, e->soy,
-				c->shadow_diffuse.r, c->shadow_diffuse.g, c->shadow_diffuse.b, c->shadow_diffuse.a,
-				NULL,
-				TEXT_ALIGN_CENTER | TEXT_ALIGN_MIDDLE,
-				e->start_h,
-				0.0f,
-				c->text
-			);
-		}
-
 		r_text_ex2(
 			c->use_native_font ? NATIVE_FONT : c->font,
 			e->x, e->y,
 			e->r, e->rox, e->roy,
 			e->sx, e->sy, e->sox, e->soy,
 			c->diffuse.r, c->diffuse.g, c->diffuse.b, c->diffuse.a,
-			NULL,
-			TEXT_ALIGN_CENTER | TEXT_ALIGN_MIDDLE,
-			e->start_h,
+			c->shadow,
+			c->shadow_x, c->shadow_y,
+			c->shadow_diffuse.r, c->shadow_diffuse.g, c->shadow_diffuse.b, c->shadow_diffuse.a,
+			c->new_style ? &c->bounds : NULL,
+			c->new_style ? c->align : TEXT_ALIGN_CENTER | TEXT_ALIGN_MIDDLE,
+			c->new_style ? c->size_in_px : e->start_h,
 			0.0f,
 			c->text
 		);
@@ -119,9 +113,23 @@ void scene_set_entities_visibility_for_prefix(scene_t * scene, const char * pref
 	scene_set_entities_visibility(&ent, visible);
 }
 
-gbRect2 sprite_AABB(scene_sprite_t * c)
+gbRect2 sprite_AABB(scene_sprite_t * c, bool original)
 {
+	if(!c)
+	{
+		gbRect2 r = {0};
+		return r;
+	}
+
 	scene_entity_t * e = c->entity;
+
+	if(original)
+	{
+		return gb_rect2(
+			gb_vec2(e->start_x - e->start_w / 2.0f, e->start_y - e->start_h / 2.0f),
+			gb_vec2(e->start_w, e->start_h)
+		);
+	}
 
 	trns_t model = tr_model_spr(
 		e->x, e->y,
@@ -152,4 +160,32 @@ gbRect2 sprite_AABB(scene_sprite_t * c)
 	}
 
 	return ret;
+}
+
+gbRect2 sprites_AABB(scene_entities_list_t * entities, bool original)
+{
+	gbRect2 r = {0};
+
+	if(!entities)
+		return r;
+
+	bool first = true;
+
+	for(size_t i = 0; i < entities->count; ++i)
+	{
+		if(entities->entities[i]->sprite)
+		{
+			gbRect2 spr = sprite_AABB(entities->entities[i]->sprite, original);
+			if(first)
+			{
+				r = spr;
+				first = false;
+			}
+			else
+			{
+				r = gb_rect2_union(r, spr);
+			}
+		}
+	}
+	return r;
 }

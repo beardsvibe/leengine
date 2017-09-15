@@ -12,6 +12,7 @@ typedef font_t (*scene_load_font_t)(const char * name); // TODO temporarely solu
 typedef struct scene_entity_t scene_entity_t;
 typedef struct scene_sprite_t scene_sprite_t;
 typedef struct scene_text_t scene_text_t;
+typedef struct scene_button_t scene_button_t;
 typedef struct scene_t scene_t;
 
 // -----------------------------------------------------------------------------
@@ -49,6 +50,8 @@ struct scene_sprite_t
 
 	// if present, render current sprite as 9slice
 	tex_9slice_t * tex_9slice;
+
+	bool pixel_perfect;
 };
 
 struct scene_text_t
@@ -66,9 +69,30 @@ struct scene_text_t
 	bool shadow;
 	float shadow_x, shadow_y;
 	r_colorf_t shadow_diffuse;
+
+	bool new_style;
+	float size_in_px;
+	uint8_t align;
+	gbRect2 bounds; // bounds feedback after rendering
+};
+
+struct scene_button_t
+{
+	char name[256];
+	scene_entity_t * enabled;
+	scene_entity_t * disabled;
+	scene_entity_t * touched;
+	scene_entity_t * activated;
+	bool mouse_in;
+	bool is_pressed;
+	size_t btn_index;
 };
 
 // -----------------------------------------------------------------------------
+
+#define SCENE_PASS_DRAW 1
+#define SCENE_PASS_FREE 2
+typedef void (*scene_pass_callback_t)(scene_t * scene, uint8_t at_pass);
 
 struct scene_t
 {
@@ -87,6 +111,7 @@ struct scene_t
 	scene_text_t ** texts;
 	size_t texts_count;
 
+	scene_pass_callback_t pass_callback;
 	uintptr_t userdata;
 };
 
@@ -107,4 +132,5 @@ void scene_set_entities_visibility(scene_entities_list_t * entities, bool visibl
 void scene_set_entities_visibility_for_prefix(scene_t * scene, const char * prefix, bool visible);
 
 // AABB in parent space
-gbRect2 sprite_AABB(scene_sprite_t * sprite);
+gbRect2 sprite_AABB(scene_sprite_t * sprite, bool original);
+gbRect2 sprites_AABB(scene_entities_list_t * entities, bool original);

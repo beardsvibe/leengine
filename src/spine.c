@@ -1,4 +1,6 @@
 
+#if 0
+
 #include "spine.h"
 #include <stdio.h>
 #include <assert.h>
@@ -230,3 +232,5 @@ void sp_set(spine_t sp, const char * anim_name, bool loop)
 
 	spAnimationState_setAnimation(sp.state, 0, animation, loop);
 }
+
+#endif

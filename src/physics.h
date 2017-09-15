@@ -1,3 +1,5 @@
+#if 0
+
 #pragma once
 
 #include <chipmunk/chipmunk.h>
@@ -18,3 +20,5 @@ void  p_set_scale(float scale); // default 1 cm = 1 px
 float p_scale();
 
 void p_remove_body(cpBody * body);
+
+#endif

@@ -22,4 +22,15 @@ void _fs_path(const char * filename, char * buf, size_t size)
 	strlcpy(buf, [fn_root UTF8String], size);
 }
 
+FILE * fsopen_gamesave(const char * filename, const char * mode)
+{
+	NSArray * lib_paths = NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES);
+	if(!lib_paths || [lib_paths count] == 0)
+		return NULL;
+
+	char buf[1024 * 2] = {0};
+	snprintf(buf, sizeof(buf), "%s/%s", [[lib_paths objectAtIndex:0] UTF8String], filename);
+	return fopen(buf, mode);
+}
+
 #endif

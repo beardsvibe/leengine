@@ -1,3 +1,5 @@
+#if 0
+
 #include "physics_debug.h"
 #define _USE_MATH_DEFINES
 #include <math.h>
@@ -127,3 +129,5 @@ void p_debug_flush(float scale)
 
 	ctx.lines_count = 0;
 }
+
+#endif

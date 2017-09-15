@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <gb_math.h>
 
 typedef int32_t font_t;
 
@@ -22,8 +23,14 @@ font_t t_add(const char * fontname, const char * filename);
 #define TEXT_ALIGN_BASELINE	(1 << 6) // vertical align default
 
 void r_text_ex2(font_t font,
-				float x, float y, float deg, float rox, float roy, float sx, float sy, float sox, float soy, float r, float g, float b, float a,
-				float * out_bounds, uint8_t align, float size_in_pt, float spacing_in_pt,
-				const char * text);
+	float x, float y,
+	float deg, float rox, float roy,
+	float sx, float sy, float sox, float soy,
+	float r, float g, float b, float a,
+	bool shadow,
+	float shadow_x, float shadow_y,
+	float shadow_r, float shadow_g, float shadow_b, float shadow_a,
+	gbRect2 * out_bounds, uint8_t align, float size_in_pt, float spacing_in_pt,
+	const char * text);
 
-void _r_text_debug_atlas(float k_size, bool blend);
+void _r_text_debug_atlas(float k_size);

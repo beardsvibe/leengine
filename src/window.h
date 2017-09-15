@@ -3,6 +3,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <entrypoint.h>
+#include <gb_math.h>
 
 // -----------------------------------------------------------------------------
 // implement this in your codebase
@@ -35,3 +36,6 @@ uint8_t w_tmax();
 float w_tx(uint8_t i);
 float w_ty(uint8_t i);
 bool w_touch(uint8_t i);
+bool w_thit(uint8_t i);
+#define MAX_FINGERS ENTRYPOINT_MAX_MULTITOUCH
+typedef struct {gbVec2 pos[MAX_FINGERS]; bool touch[MAX_FINGERS]; bool hit[MAX_FINGERS];} fingers_t;

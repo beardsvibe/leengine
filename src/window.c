@@ -16,8 +16,41 @@ static struct
 	uint32_t reset_flags;
 	#ifdef ENTRYPOINT_PROVIDE_INPUT
 	ep_touch_t touch;
+	bool touch_hit[ENTRYPOINT_MAX_MULTITOUCH];
 	#endif
 } ctx;
+
+#if 0
+void bgfx_fatal(bgfx_callback_interface_t* _this, bgfx_fatal_t _code, const char* _str)
+{
+}
+void bgfx_trace_vargs(bgfx_callback_interface_t* _this, const char* _filePath, uint16_t _line, const char* _format, va_list _argList)
+{
+}
+uint32_t bgfx_cache_read_size(bgfx_callback_interface_t* _this, uint64_t _id)
+{
+	return 0;
+}
+bool bgfx_cache_read(bgfx_callback_interface_t* _this, uint64_t _id, void* _data, uint32_t _size)
+{
+	return false;
+}
+void bgfx_cache_write(bgfx_callback_interface_t* _this, uint64_t _id, const void* _data, uint32_t _size)
+{
+}
+void bgfx_screen_shot(bgfx_callback_interface_t* _this, const char* _filePath, uint32_t _width, uint32_t _height, uint32_t _pitch, const void* _data, uint32_t _size, bool _yflip)
+{
+}
+void bgfx_capture_begin(bgfx_callback_interface_t* _this, uint32_t _width, uint32_t _height, uint32_t _pitch, bgfx_texture_format_t _format, bool _yflip)
+{
+}
+void bgfx_capture_end(bgfx_callback_interface_t* _this)
+{
+}
+void bgfx_capture_frame(bgfx_callback_interface_t* _this, const void* _data, uint32_t _size)
+{
+}
+#endif
 
 int32_t entrypoint_init(int32_t argc, char * argv[])
 {
@@ -45,7 +78,23 @@ int32_t entrypoint_init(int32_t argc, char * argv[])
 	#endif
 	bgfx_set_platform_data(&pd);
 
-	bgfx_init(BGFX_RENDERER_TYPE_COUNT, BGFX_PCI_ID_NONE, 0, NULL, NULL);
+	static bgfx_callback_interface_t * cb_interface_ptr = NULL;
+	#if 0
+	static bgfx_callback_vtbl_t cb_vtbl = {0};
+	static bgfx_callback_interface_t cb_interface = {&cb_vtbl};
+	cb_vtbl.fatal = bgfx_fatal;
+	cb_vtbl.trace_vargs = bgfx_trace_vargs;
+	cb_vtbl.cache_read_size = bgfx_cache_read_size;
+	cb_vtbl.cache_read = bgfx_cache_read;
+	cb_vtbl.cache_write = bgfx_cache_write;
+	cb_vtbl.screen_shot = bgfx_screen_shot;
+	cb_vtbl.capture_begin = bgfx_capture_begin;
+	cb_vtbl.capture_end = bgfx_capture_end;
+	cb_vtbl.capture_frame = bgfx_capture_frame;
+	cb_interface_ptr = &cb_interface;
+	#endif
+
+	bgfx_init(BGFX_RENDERER_TYPE_COUNT, BGFX_PCI_ID_NONE, 0, cb_interface_ptr, NULL);
 
 	// enable retina in bgfx only if entrypoint is built with it
 	if(ep_retina() && (bgfx_get_caps()->supported & BGFX_CAPS_HIDPI))
@@ -55,7 +104,7 @@ int32_t entrypoint_init(int32_t argc, char * argv[])
 
 	_r_init();
 	_s_init();
-	_p_init();
+//	_p_init();
 	_t_init(1024, 1024);
 
 	return game_init(argc, argv);
@@ -68,7 +117,7 @@ int32_t entrypoint_deinit()
 	int32_t err = game_deinit();
 
 	_t_deinit();
-	_p_deinit();
+//	_p_deinit();
 	_s_deinit();
 	_r_deinit();
 
@@ -99,7 +148,7 @@ int32_t entrypoint_loop()
 
 	// get dt
 	#ifdef ENTRYPOINT_PROVIDE_TIME
-	float dt = (float)ep_time();
+	float dt = (float)ep_delta_time();
 	if(dt > 1.0f / 25.0f)
 		dt = 1.0f / 25.0f;
 	#else
@@ -116,7 +165,10 @@ int32_t entrypoint_loop()
 
 	// handle touch
 	#ifdef ENTRYPOINT_PROVIDE_INPUT
+	ep_touch_t prev_touch = ctx.touch;
 	ep_touch(&ctx.touch);
+	for(size_t i = 0; i < ENTRYPOINT_MAX_MULTITOUCH; ++i)
+		ctx.touch_hit[i] = ctx.touch.multitouch[i].touched && (!prev_touch.multitouch[i].touched);
 	#endif
 
 	// update
@@ -157,6 +209,7 @@ uint8_t w_tmax() {return ENTRYPOINT_MAX_MULTITOUCH;}
 float w_tx(uint8_t i) {return ctx.touch.multitouch[i].x;}
 float w_ty(uint8_t i) {return ctx.touch.multitouch[i].y;}
 bool w_touch(uint8_t i) {return ctx.touch.multitouch[i].touched;}
+bool w_thit(uint8_t i) {return ctx.touch_hit[i];}
 
 #else
 
@@ -170,5 +223,6 @@ size_t w_tmax() {return 0;}
 float w_tx(size_t i) {return 0.0f;}
 float w_ty(size_t i) {return 0.0f;}
 bool w_touch(size_t i) {return false;}
+bool w_touch(uint8_t i) {return false;}
 
 #endif

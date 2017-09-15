@@ -47,9 +47,14 @@ int32_t game_render(uint16_t w, uint16_t h, float dt)
 	bgfx_dbg_text_printf(1, 1, 0x0f, "%6.1f %6.1f %i", w_mx(), w_my(), w_mtouch());
 	bgfx_dbg_text_printf(50, 1, 0x0f, "why, hello there!");
 
+	tr_set_parent_world(tr_identity());
+	tr_set_world(tr_identity());
+
 	static float deg = 0.0f;
 	deg += 360.0f * dt;
-	r_render(test, 0.0f, 0.0f, deg, 1.0f, 1.0f);
+	r_render_sprite(test, 0.0f, 0.0f, deg, 1.0f, 1.0f);
+
+	r_frame_end();
 
 	return 0;
 }

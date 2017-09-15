@@ -113,6 +113,7 @@ void tr_set_view_prj(uint8_t viewid, trns_t prj, trns_t view, gbVec2 viewport_po
 	// set bgfx stuff
 	bgfx_set_view_rect(viewid, (uint16_t)viewport_pos.x, (uint16_t)viewport_pos.y, (uint16_t)viewport_size.x, (uint16_t)viewport_size.y);
 	bgfx_set_view_transform(viewid, _to_bgfx(ctx.view).e, _to_bgfx(ctx.prj).e);
+	bgfx_set_transform(_to_bgfx(tr_identity()).e, 1);
 }
 
 void tr_set_parent_world(trns_t parent_world)
@@ -120,11 +121,25 @@ void tr_set_parent_world(trns_t parent_world)
 	ctx.parent_world = parent_world;
 }
 
+trns_t tr_get_parent_world()
+{
+	return ctx.parent_world;
+}
+
 void tr_set_world(trns_t model)
 {
 	ctx.model = model;
 	ctx.world = tr_mul(ctx.parent_world, ctx.model);
-	bgfx_set_transform(_to_bgfx(ctx.world).e, 1);
+}
+
+trns_t tr_get_model()
+{
+	return ctx.model;
+}
+
+trns_t tr_get_world()
+{
+	return ctx.world;
 }
 
 gbVec2 tr_prj(gbVec2 pos)

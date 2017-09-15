@@ -2,10 +2,11 @@
 #include <stb_image.h>
 #include <assert.h>
 #include <string.h>
-#include <tex_color_vs.h>
-#include <tex_color_fs.h>
+#include SHADER_INCLUDE_VS
+#include SHADER_INCLUDE_FS
 #include <entrypoint.h>
 #include "filesystem.h"
+#include "render_batch.h"
 #include "_missing_texture.h"
 
 r_color_t r_color(float r, float g, float b, float a)
@@ -47,35 +48,27 @@ r_color_t r_colorf_to_color(r_colorf_t color)
 {
 	return r_color(color.r, color.g, color.b, color.a);
 }
-
-static vrtx_t sprite_vertices[4] =
+r_colorf_t r_colorf_mul(r_colorf_t a, r_colorf_t b)
 {
-	// 0 1
-	// 3 2
-	{-0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 0xffffffff },
-	{ 0.5f,  0.5f, 0.0f, 1.0f, 0.0f, 0xffffffff },
-	{ 0.5f, -0.5f, 0.0f, 1.0f, 1.0f, 0xffffffff },
-	{-0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0xffffffff },
-};
-
-static const uint16_t sprite_indices[6] =
-{
-	0, 1, 2, // TODO resolve dat shit with ccw vs cw
-	0, 2, 3,
-};
+	r_colorf_t ret;
+	ret.r = a.r * b.r;
+	ret.g = a.g * b.g;
+	ret.b = a.b * b.b;
+	ret.a = a.a * b.a;
+	return ret;
+}
 
 static struct
 {
 	bgfx_vertex_decl_t			vert_decl;
 	bgfx_uniform_handle_t		s_texture;
-	bgfx_uniform_handle_t		u_diffuse;
 	bgfx_program_handle_t		prog;
-	bgfx_vertex_buffer_handle_t	v_buf;
-	bgfx_index_buffer_handle_t	i_buf;
 	tex_t						white_tex;
 	uint8_t						viewid;
 	uint32_t					view_color;
 	uint16_t					view_x, view_y, view_w, view_h;
+
+	bool hint_no_alpha;
 } ctx;
 
 void _r_init()
@@ -85,32 +78,31 @@ void _r_init()
 	bgfx_vertex_decl_add(&ctx.vert_decl, BGFX_ATTRIB_TEXCOORD0, 2, BGFX_ATTRIB_TYPE_FLOAT, false, false);
 	bgfx_vertex_decl_add(&ctx.vert_decl, BGFX_ATTRIB_COLOR0,    4, BGFX_ATTRIB_TYPE_UINT8,  true, false);
 	bgfx_vertex_decl_end(&ctx.vert_decl);
+	assert(ctx.vert_decl.stride == sizeof(vrtx_t));
 
 	ctx.s_texture = bgfx_create_uniform("s_texture", BGFX_UNIFORM_TYPE_INT1, 1);
-	ctx.u_diffuse = bgfx_create_uniform("u_diffuse", BGFX_UNIFORM_TYPE_VEC4, 1);
 
 	// TODO support others
 	bgfx_shader_handle_t vs = bgfx_create_shader(bgfx_make_ref(tex_color_vs, sizeof(tex_color_vs)));
 	bgfx_shader_handle_t fs = bgfx_create_shader(bgfx_make_ref(tex_color_fs, sizeof(tex_color_fs)));
 	ctx.prog = bgfx_create_program(vs, fs, true);
 
-	ctx.v_buf = bgfx_create_vertex_buffer(bgfx_make_ref(sprite_vertices, sizeof(sprite_vertices)), &ctx.vert_decl, BGFX_BUFFER_NONE);
-	ctx.i_buf = bgfx_create_index_buffer(bgfx_make_ref(sprite_indices, sizeof(sprite_indices)), BGFX_BUFFER_NONE);
-
 	static r_color_t white_color = 0xffffffff;
 	ctx.white_tex.tex = bgfx_create_texture_2d(1, 1, false, 0, BGFX_TEXTURE_FORMAT_RGBA8, BGFX_TEXTURE_U_MIRROR | BGFX_TEXTURE_W_MIRROR | BGFX_TEXTURE_MAG_POINT | BGFX_TEXTURE_MIN_POINT, bgfx_make_ref(&white_color, sizeof(white_color)));
-	ctx.white_tex.w = 1;
-	ctx.white_tex.h = 1;
+	ctx.white_tex.w = 1; ctx.white_tex.h = 1;
+	ctx.white_tex.pixel_w = 1; ctx.white_tex.h = 1;
+	ctx.white_tex.u1 = 0.0f; ctx.white_tex.v1 = 0.0f;
+	ctx.white_tex.u2 = 1.0f; ctx.white_tex.v2 = 1.0f;
+
+	rb_init();
 }
 
 void _r_deinit()
 {
+	rb_deinit();
 	bgfx_destroy_texture(ctx.white_tex.tex);
 	bgfx_destroy_program(ctx.prog);
-	bgfx_destroy_uniform(ctx.u_diffuse);
 	bgfx_destroy_uniform(ctx.s_texture);
-	bgfx_destroy_vertex_buffer(ctx.v_buf);
-	bgfx_destroy_index_buffer(ctx.i_buf);
 }
 
 static bool _ends_with(const char * str, const char * ext)
@@ -195,15 +187,16 @@ static void r_setup_viewid(bool first)
 	else
 		bgfx_set_view_clear(ctx.viewid, BGFX_CLEAR_NONE, 0, 0.0f, 0);
 
-	float wf = ctx.view_w / 2.0f, hf = ctx.view_h / 2.0f;
+	float wf = (float)ctx.view_w / 2.0f, hf = (float)ctx.view_h / 2.0f;
 	tr_set_view_prj(ctx.viewid, tr_ortho(-wf, wf, -hf, hf, -1.0f, 1.0f), tr_identity(), gb_vec2(ctx.view_x, ctx.view_y), gb_vec2(ctx.view_w, ctx.view_h));
 
-	bgfx_set_view_seq(ctx.viewid, true);
 	bgfx_touch(ctx.viewid);
+	bgfx_set_view_mode(ctx.viewid, BGFX_VIEW_MODE_SEQUENTIAL);
 }
 
 static void r_next_viewid()
 {
+	rb_flush();
 	++ctx.viewid;
 	r_setup_viewid(false);
 }
@@ -219,89 +212,108 @@ void r_viewport(uint16_t x, uint16_t y, uint16_t w, uint16_t h, r_color_t color)
 	ctx.viewid = 0;
 	r_setup_viewid(true);
 	tr_set_parent_world(tr_identity());
+	rb_start();
+
+	ctx.hint_no_alpha = false;
 }
 
-void r_render(tex_t tex, float x, float y, float r_deg, float sx, float sy)
+void r_frame_end()
 {
-	r_render_ex2(tex, x, y, r_deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+	rb_flush();
 }
 
-void r_render_ex(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy)
+void r_pixel_perfect_map(float * x, float * y, float w, float h)
 {
-	r_render_ex2(tex, x, y, r_deg, rox, roy, sx, sy, sox, soy, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f);
+	float vdx = (float)ctx.view_w / 2.0f;
+	float vdy = (float)ctx.view_h / 2.0f;
+	vdx -= (int)vdx;
+	vdy -= (int)vdy;
+
+	float dx = w * 0.5f - *x;
+	float dy = h * 0.5f - *y;
+	dx -= (int)dx;
+	dy -= (int)dy;
+
+	*x += vdx - dx;
+	*y -= vdy - dy;
 }
 
-void r_render_ex2(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float ox, float oy, float r, float g, float b, float a)
+void r_render_hint_no_alpha()
 {
+	ctx.hint_no_alpha = true;
+}
+
+void r_render_sprite(tex_t tex, float x, float y, float r_deg, float sx, float sy)
+{
+	r_render_sprite_ex(tex, x, y, r_deg, 0.0f, 0.0f, sx, sy, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.0f, 1.0f, 1.0f, false);
+}
+
+void r_render_sprite_ex(tex_t tex, float x, float y, float r_deg, float rox, float roy, float sx, float sy, float sox, float soy, float ox, float oy, float r, float g, float b, float a, bool pixel_perfect)
+{
+	if(pixel_perfect)
+		r_pixel_perfect_map(&x, &y, tex.w * sx, tex.h * sy);
+
 	tr_set_world(tr_model_spr(x, y, r_deg, rox, roy, sx, sy, sox, soy, tex.w, tex.h, ox, oy));
 
-	if(tex.u1 == 0.0f && tex.v1 == 0.0f && tex.u2 == 1.0f && tex.v2 == 1.0f)
+	r_color_t color = r_color(r, g, b, a);
+
+	vrtx_t sprite_vertices[4] =
 	{
-		r_submit(ctx.v_buf, ctx.i_buf, tex.tex, r, g, b, a, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
-	}
-	else
+		// 0 1
+		// 3 2
+		{-0.5f,  0.5f, 0.0f, tex.u1, tex.v1, color },
+		{ 0.5f,  0.5f, 0.0f, tex.u2, tex.v1, color },
+		{ 0.5f, -0.5f, 0.0f, tex.u2, tex.v2, color },
+		{-0.5f, -0.5f, 0.0f, tex.u1, tex.v2, color },
+	};
+
+	uint16_t sprite_indices[6] =
 	{
-		// TODO better way to render sprites with custom UV ?
+		0, 1, 2, // TODO resolve dat shit with ccw vs cw
+		0, 2, 3,
+	};
 
-		vrtx_t sprite_vertices[4] =
-		{
-			// 0 1
-			// 3 2
-			{-0.5f,  0.5f, 0.0f, tex.u1, tex.v1, 0xffffffff },
-			{ 0.5f,  0.5f, 0.0f, tex.u2, tex.v1, 0xffffffff },
-			{ 0.5f, -0.5f, 0.0f, tex.u2, tex.v2, 0xffffffff },
-			{-0.5f, -0.5f, 0.0f, tex.u1, tex.v2, 0xffffffff },
-		};
+	uint64_t state = BGFX_STATE_DEFAULT_2D;
 
-		const uint16_t sprite_indices[6] =
-		{
-			0, 1, 2, // TODO resolve dat shit with ccw vs cw
-			0, 2, 3,
-		};
+	if(!ctx.hint_no_alpha)
+		state |= BGFX_STATE_BLEND_ALPHA;
+	ctx.hint_no_alpha = false;
 
-		bgfx_transient_vertex_buffer_t vt;
-		bgfx_alloc_transient_vertex_buffer(&vt, 4, r_decl());
-		memcpy(vt.data, sprite_vertices, sizeof(sprite_vertices));
-
-		bgfx_transient_index_buffer_t it;
-		bgfx_alloc_transient_index_buffer(&it, 6);
-		memcpy(it.data, sprite_indices, sizeof(sprite_indices));
-
-		r_submit_transient(&vt, &it, tex.tex, r, g, b, a, BGFX_STATE_DEFAULT_2D | BGFX_STATE_BLEND_ALPHA);
-	}
+	r_render_transient(
+		sprite_vertices, 4,
+		sprite_indices, 6,
+		tex.tex,
+		1.0f, 1.0f, 1.0f, 1.0f,
+		state
+	);
 }
 
-void r_submit(
-	bgfx_vertex_buffer_handle_t vbuf,
-	bgfx_index_buffer_handle_t ibuf,
+void r_render_transient(
+	vrtx_t * vbuf,
+	uint16_t vbuf_count,
+	uint16_t * ibuf,
+	uint32_t ibuf_count,
 	bgfx_texture_handle_t tex,
-	float diffuse_r, float diffuse_g, float diffuse_b, float diffuse_a,
+	float r, float g, float b, float a,
 	uint64_t state
 )
 {
-	float diffuse[4] = {diffuse_r, diffuse_g, diffuse_b, diffuse_a};
-	bgfx_set_vertex_buffer(vbuf, 0, -1);
-	bgfx_set_index_buffer(ibuf, 0, -1);
-	bgfx_set_texture(0, ctx.s_texture, tex, -1);
-	bgfx_set_uniform(ctx.u_diffuse, diffuse, 1);
-	bgfx_set_state(state, 0);
-	bgfx_submit(ctx.viewid, ctx.prog, 0, false);
-}
-void r_submit_transient(
-	bgfx_transient_vertex_buffer_t * vbuf,
-	bgfx_transient_index_buffer_t * ibuf,
-	bgfx_texture_handle_t tex,
-	float diffuse_r, float diffuse_g, float diffuse_b, float diffuse_a,
-	uint64_t state
-)
-{
-	float diffuse[4] = {diffuse_r, diffuse_g, diffuse_b, diffuse_a};
-	bgfx_set_transient_vertex_buffer(vbuf, 0, -1);
-	bgfx_set_transient_index_buffer(ibuf, 0, -1);
-	bgfx_set_texture(0, ctx.s_texture, tex, -1);
-	bgfx_set_uniform(ctx.u_diffuse, diffuse, 1);
-	bgfx_set_state(state, 0);
-	bgfx_submit(ctx.viewid, ctx.prog, 0, false);
+	// apply transform
+	trns_t world = tr_get_world();
+	for(size_t i = 0; i < vbuf_count; ++i)
+	{
+		gbVec4 out;
+		gb_mat4_mul_vec4(&out, &world, gb_vec4(vbuf[i].x, vbuf[i].y, 0.0f, 1.0f));
+		vbuf[i].x = out.x;
+		vbuf[i].y = out.y;
+	}
+
+	// apply color
+	if(r != 1.0f || g != 1.0f || b != 1.0f || a != 1.0f)
+		for(size_t i = 0; i < vbuf_count; ++i)
+			vbuf[i].color = r_colorf_to_color(r_colorf_mul(r_color_to_colorf(vbuf[i].color), r_colorf(r, g, b, a)));
+
+	rb_add(tex, vbuf, vbuf_count, ibuf, ibuf_count, state);
 }
 
 void r_scissors(uint16_t x, uint16_t y, uint16_t w, uint16_t h)
@@ -317,10 +329,7 @@ void r_scissors_clear()
 }
 
 bgfx_vertex_decl_t *	r_decl()		{return &ctx.vert_decl;}
+uint8_t					r_viewid()		{return ctx.viewid;}
 bgfx_uniform_handle_t	r_s_texture()	{return ctx.s_texture;}
-bgfx_uniform_handle_t	r_u_diffuse()	{return ctx.u_diffuse;}
 bgfx_program_handle_t	r_prog()		{return ctx.prog;}
 tex_t					r_white_tex()	{return ctx.white_tex;}
-
-bgfx_vertex_buffer_handle_t _r_sprvbuf() {return ctx.v_buf;}
-bgfx_index_buffer_handle_t _r_spribuf() {return ctx.i_buf;}
